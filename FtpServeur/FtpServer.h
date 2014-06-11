@@ -28,45 +28,56 @@
 
 #include <Streaming.h>
 #include <Ethernet.h>
-#include <SdFat.h>
+#include "SdList.h"
 
-#define FTP_SERVER_VERSION "2013-08-14"
+// Uncomment to print debugging info to console attached to Arduino
+#define FTP_DEBUG
+
+#define FTP_SERVER_VERSION "FTP-2014-06-10"
 
 #define FTP_USER "arduino"
 #define FTP_PASS "Due"
 
-#define FTP_TIME_OUT 5       // Disconnect client after 5 minutes of inactivity
-#define FTP_CMD_SIZE 256     // max size of a command
-#define FTP_CWD_SIZE 256     // max size of a directory name
-#define FTP_BUF_SIZE 512     // size of file buffer for read/write
+#define FTP_CTRL_PORT 21         // Command port on wich server is listening
+#define FTP_DATA_PORT_DFLT 20    // Default data port in active mode
+#define FTP_DATA_PORT_PASV 55600 // Data port in passive mode
+
+#define FTP_TIME_OUT 5           // Disconnect client after 5 minutes of inactivity
+#define FTP_CMD_SIZE 256         // max size of a command
+#define FTP_CWD_SIZE 256         // max size of a directory name
+#define FTP_FIL_SIZE 128         // max size of a file name
+#define FTP_BUF_SIZE 512         // size of file buffer for read/write
 
 class FtpServer
 {
 public:
-
-  void init();
-  void service();
+  void    init();
+  void    service();
 
 private:
-
+  void    iniVariables();
   void    clientConnected();
   void    disconnectClient();
   boolean userIdentity();
   boolean userPassword();
   boolean processCommand();
+  int     dataConnect();
   boolean doRetrieve();
   boolean doStore();
   void    closeTransfer();
+  boolean makePathName( char * name, char * path, size_t maxpl );
   int8_t  readChar();
 
   IPAddress dataIp;               // IP address of client for data
   EthernetClient client;
   EthernetClient data;
+  SdFile file;
+  boolean dataPassiveConn;
   uint16_t dataPort;
   uint8_t buf[ FTP_BUF_SIZE ];    // data buffer for transfers
   char cmdLine[ FTP_CMD_SIZE ];   // where to store incoming char from client
-  char cwdLName[ FTP_CWD_SIZE ];  // long name for current directory
-  char cwdSName[ FTP_CWD_SIZE ];  // short name for current directory
+  char cwdName[ FTP_CWD_SIZE ];   // name of current directory
+  char cwdRNFR[ FTP_CWD_SIZE ];   // name of origin directory for Rename command
   char command[ 5 ];              // command sent by client
   char * parameters;              // point to begin of parameters sent by client
   uint16_t iCL;                   // pointer to cmdLine next incoming char
@@ -76,7 +87,6 @@ private:
            millisEndConnection,   // 
            millisBeginTrans,      // store time of beginning of a transaction
            bytesTransfered;       //
-  SdFile file;
 };
 
 #endif // FTP_SERVER_H
