@@ -53,14 +53,6 @@
 
 #include <Streaming.h>
 #include <Ethernet.h>
-/*
-#include "FatDefine.h"
-#ifdef SDFAT
-  #include <SdFat.h>
-#else
-  #include <FatFs.h>
-#endif
-*/
 
 // Uncomment to print debugging info to console attached to Arduino
 #define FTP_DEBUG

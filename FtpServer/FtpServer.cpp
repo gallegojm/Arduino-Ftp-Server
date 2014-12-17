@@ -53,6 +53,7 @@
  *     Filezilla : problem with RETR and STOR
  *   under Ubuntu:
  *     gFTP : ok
+ *     Filezilla : ok
  *   with a second Arduino and sketch of SurferTim at
  *     http://playground.arduino.cc/Code/FTP
  * 
@@ -456,7 +457,7 @@ boolean FtpServer::processCommand()
             data << "+r,s" << file.fileSize();
           data << ",\t";
           file.printName( & data );
-          Serial << "\r\n";
+          data << "\r\n";
           file.close();
           nm ++;
         }
