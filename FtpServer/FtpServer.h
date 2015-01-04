@@ -1,7 +1,7 @@
 
 /*
  * FTP Serveur for Arduino Due and Ethernet shield (W5100) or WIZ820io (W5200)
- * Copyright (c) 2014 by Jean-Michel Gallego
+ * Copyright (c) 2014-2015 by Jean-Michel Gallego
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,43 +19,19 @@
 
 /*******************************************************************************
  **                                                                            **
- **                         FUNCTIONS FOR FTP SERVER                           **
+ **                       DEFINITIONS FOR FTP SERVER                           **
  **                                                                            **
  *******************************************************************************/
+
+// Uncomment to print debugging info to console attached to Arduino
+#define FTP_DEBUG
 
 #ifndef FTP_SERVER_H
 #define FTP_SERVER_H
 
-// Set FAT_SYST to 0 to use library SdFat
-// Set FAT_SYST to 1 to use library FatFs
-#define FAT_SYST 0
-
-#if FAT_SYST == 0
-  #include <SdFat.h>
-
-  #define FAT  sd
-  #define FAT_FILE SdFile
-  #define FAT_DIR  SdFile
-
-  #define _MAX_LFN 255
-#else
-  #include <SD.h>
-  #include <FatFs.h>
-
-  #define FAT      FatFs
-  #define FAT_FILE FileFs
-  #define FAT_DIR  DirFs
-
-  #define O_READ   FA_READ
-  #define O_WRITE  FA_WRITE
-  #define O_CREATE FA_CREATE_ALWAYS
-#endif
-
 #include <Streaming.h>
 #include <Ethernet.h>
-
-// Uncomment to print debugging info to console attached to Arduino
-#define FTP_DEBUG
+#include <FatLib.h>
 
 #define FTP_SERVER_VERSION "FTP-2014-11-25"
 
@@ -70,7 +46,7 @@
 #define FTP_CMD_SIZE _MAX_LFN + 8 // max size of a command
 #define FTP_CWD_SIZE _MAX_LFN + 8 // max size of a directory name
 #define FTP_FIL_SIZE _MAX_LFN     // max size of a file name
-#define FTP_BUF_SIZE 512          // size of file buffer for read/write
+#define FTP_BUF_SIZE 1024 //512          // size of file buffer for read/write
 
 class FtpServer
 {

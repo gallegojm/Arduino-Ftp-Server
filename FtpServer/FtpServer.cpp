@@ -1,6 +1,6 @@
 /*
  * FTP Serveur for Arduino Due and Ethernet shield (W5100) or WIZ820io (W5200)
- * Copyright (c) 2014 by Jean-Michel Gallego
+ * Copyright (c) 2014-2015 by Jean-Michel Gallego
  * 
  * Use Streaming.h from Mial Hart
  *
@@ -8,6 +8,8 @@
  *   (see http://elm-chan.org/fsw/ff/00index_e.html )
  * or SdFat library from William Greiman
  *   (see https://github.com/greiman/SdFat )
+ *
+ * Use FatLib to select between FatFs and SdFat
  *
  * Use Ethernet library with some modifications:
  *   modification for WIZ820io (see http://forum.arduino.cc/index.php?topic=139147.0 
@@ -72,10 +74,6 @@
  */
 
 #include "FtpServer.h"
-
-#if FAT_SYST == 0
-  extern SdFat sd;
-#endif
 
 EthernetServer ftpServer( FTP_CTRL_PORT );
 EthernetServer dataServer( FTP_DATA_PORT_PASV );
@@ -446,22 +444,10 @@ boolean FtpServer::processCommand()
       client << "150 Accepted data connection\r\n";
       uint16_t nm = 0;
       FAT_DIR dir;
-      if( ! dir.open( cwdName ))
+      if( ! dir.openDir( cwdName ))
         client << "550 Can't open directory " << parameters << "\r\n";
-      #if FAT_SYST == 0
-        while( file.openNext( &dir, O_READ ))
-        {
-          if( file.isSubDir() )
-            data << "+/";
-          else
-            data << "+r,s" << file.fileSize();
-          data << ",\t";
-          file.printName( & data );
-          data << "\r\n";
-          file.close();
-          nm ++;
-        }
-      #else
+      else
+      {
         while( dir.nextFile())
         {
           if( dir.isDir() )
@@ -471,7 +457,7 @@ boolean FtpServer::processCommand()
           data << ",\t" << dir.fileName() << "\r\n";
           nm ++;
         }
-      #endif
+      }
       client << "226 " << nm << " matches total\r\n";
       data.stop();
     }
@@ -488,28 +474,19 @@ boolean FtpServer::processCommand()
       client << "150 Accepted data connection\r\n";
       uint16_t nm = 0;
       FAT_DIR dir;
-      if( ! dir.open( cwdName ))
+      if( ! dir.openDir( cwdName ))
         client << "550 Can't open directory " << parameters << "\r\n";
-      #if FAT_SYST == 0
-        while( file.openNext( &dir, O_READ ))
-        {
-          data << "Type=" << ( file.isSubDir() ? "dir" : "file" ) << ";"
-               << "Size=" << file.fileSize() << "; ";
-          file.printName( & data );
-          data << "\r\n";
-          file.close();
-          nm ++;
-        }
-      #else
+      else
+      {
         while( dir.nextFile())
         {
           data << "Type=" << ( dir.isDir() ? "dir" : "file" ) << ";"
                << "Size=" << dir.fileSize() << "; " << dir.fileName() << "\r\n";
           nm ++;
         }
-      #endif
-      client << "226-options: -a -l\r\n";
-      client << "226 " << nm << " matches total\r\n";
+        client << "226-options: -a -l\r\n";
+        client << "226 " << nm << " matches total\r\n";
+      }
       data.stop();
     }
   }
@@ -525,23 +502,17 @@ boolean FtpServer::processCommand()
       client << "150 Accepted data connection\r\n";
       uint16_t nm = 0;
       FAT_DIR dir;
-      if( ! dir.open( cwdName ))
+      if( ! dir.openDir( cwdName ))
         client << "550 Can't open directory " << parameters << "\r\n";
-      #if FAT_SYST == 0
-        while( file.openNext( &dir, O_READ ))
-        {
-          file.printName( & data );
-          data << "\r\n";
-          nm ++;
-        }
-      #else
+      else
+      {
         while( dir.nextFile())
         {
           data << dir.fileName() << "\r\n";
           nm ++;
         }
-      #endif
-      client << "226 " << nm << " matches total\r\n";
+        client << "226 " << nm << " matches total\r\n";
+      }
       data.stop();
     }
   }
@@ -768,15 +739,8 @@ boolean FtpServer::processCommand()
   else if( ! strcmp( command, "SITE" ))
   {
     if( ! strcmp( parameters, "FREE" ))
-    {
-      #if FAT_SYST == 0
-        client << "200 " << ( sd.vol()->freeClusterCount() * sd.vol()->blocksPerCluster() >> 11 )  << " MB free of " 
-               << ( sd.card()->cardSize() >> 11 ) << " MB capacity\r\n";
-      #else
-        client << "200 " << ( FatFs.free() >> 20 )  << " MB free of " 
-               << ( FatFs.capacity() >> 20 ) << " MB capacity\r\n";
-      #endif
-    }
+      client << "200 " << FAT.free() << " MB free of " 
+             << FAT.capacity() << " MB capacity\r\n";
     else
       client << "500 Unknow SITE command " << parameters << "\r\n";
   }

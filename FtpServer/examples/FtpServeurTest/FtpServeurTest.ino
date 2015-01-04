@@ -1,30 +1,26 @@
 /*
  * This sketch demonstrate the use of FTP server library
- * Copyright (c) 2014 by Jean-Michel Gallego
+ * Copyright (c) 2014-2015 by Jean-Michel Gallego
  */
 
 #include <Streaming.h>
 #include <SPI.h>
 #include <Ethernet.h>
-#include <FtpServer.h>
+#include <FatLib.h>
 #if FAT_SYST == 0
   #include <SdFat.h>
 #else
   #include <SD.h>
   #include <FatFs.h>
 #endif
+#include <FtpServer.h>
 
 // Define Chip Select for your SD card according to hardware 
-// #define CS_SDCARD 4  // SD card reader of Ehernet shield
-#define CS_SDCARD 9
+#define CS_SDCARD 4  // SD card reader of Ehernet shield
 
 // Define Reset pin for W5200 (set to -1 for an other ethernet chip)
 // #define P_RESET -1
 #define P_RESET 8
-
-#if FAT_SYST == 0
-  SdFat sd;
-#endif
 
 FtpServer ftpSrv;
 
