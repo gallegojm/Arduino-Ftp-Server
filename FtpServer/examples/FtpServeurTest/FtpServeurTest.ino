@@ -10,13 +10,13 @@
 #if FAT_SYST == 0
   #include <SdFat.h>
 #else
-  #include <SD.h>
   #include <FatFs.h>
 #endif
 #include <FtpServer.h>
 
 // Define Chip Select for your SD card according to hardware 
-#define CS_SDCARD 4  // SD card reader of Ehernet shield
+// #define CS_SDCARD 4  // SD card reader of Ehernet shield
+#define CS_SDCARD 9
 
 // Define Reset pin for W5200 (set to -1 for an other ethernet chip)
 // #define P_RESET -1

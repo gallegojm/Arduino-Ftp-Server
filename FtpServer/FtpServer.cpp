@@ -420,7 +420,6 @@ boolean FtpServer::processCommand()
       client << "500 Command line too long\r\n";
     else
     {
-      Serial << "Deleting [" << path << "]" << endl;
       if( ! FAT.exists( path ))
         client << "550 File " << parameters << " not found\r\n";
       else
@@ -768,7 +767,6 @@ int FtpServer::dataConnect()
 boolean FtpServer::doRetrieve()
 {
   int16_t nb = file.read( buf, FTP_BUF_SIZE );
-//  int16_t nb = file.readBuffer( buf, FTP_BUF_SIZE );
   if( nb > 0 )
   {
     data.write( buf, nb );
@@ -787,7 +785,6 @@ boolean FtpServer::doStore()
     if( nb > 0 )
     {
       // Serial << millis() << " " << nb << endl;
-//      file.writeBuffer( buf, nb );
       file.write( buf, nb );
       bytesTransfered += nb;
     }
