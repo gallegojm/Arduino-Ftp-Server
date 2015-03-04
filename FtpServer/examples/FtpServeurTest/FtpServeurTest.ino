@@ -15,8 +15,8 @@
 #include <FtpServer.h>
 
 // Define Chip Select for your SD card according to hardware 
-// #define CS_SDCARD 4  // SD card reader of Ehernet shield
-#define CS_SDCARD 9
+#define CS_SDCARD 4  // SD card reader of Ehernet shield
+// #define CS_SDCARD 52
 
 // Define Reset pin for W5200 (set to -1 for an other ethernet chip)
 // #define P_RESET -1
@@ -54,13 +54,11 @@ void setup()
   #else
     Serial << "FatFs ... ";
   #endif
-  if( ! FAT.begin( CS_SDCARD, SPI_HALF_SPEED ))
+  if( ! FAT.begin( CS_SDCARD, SPI_FULL_SPEED ))
   {
     Serial << "Unable to mount SD card" << endl;
     while( true ) ;
   }
-  pinMode( CS_SDCARD, OUTPUT ); 
-  digitalWrite( CS_SDCARD, HIGH );
   Serial << "ok" << endl;
 
   // Send reset to W5200

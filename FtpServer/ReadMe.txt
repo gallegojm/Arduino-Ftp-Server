@@ -1,7 +1,9 @@
+=================================================
 How to use FtpServer on Arduino Due and ide 1.6.0
+=================================================
 
 1) Download and install
-   - Streaming
+   - Streaming ( http://arduiniana.org/Streaming/Streaming5.zip )
    - FatFs
 2) To test the access to the SD card is ok :
    - load example libraries/FatFs/examples/FatFsDemo,
@@ -19,9 +21,12 @@ How to use FtpServer on Arduino Due and ide 1.6.0
    - anotate in the ide serial monitor the IP your router assign to the Ftp Server
    - open a session in a Ftp client (FTPRush, passive mode, user "arduino", password "Due")
    
+==================================
 You can use SdFat instead of FatFs
+==================================
+
 It use less memory but do not allow extended characters in file names.
-1) Download SdFat (version for Long File Names if you need them) and install
+1) Download SdFat ( https://github.com/greiman/SdFat-beta ) and install
 2) Check configuration parameters in libraries/SdFat/SdFatConfig.h and set these parameters to one:
     #define SD_SPI_CONFIGURATION 1
     #define ENABLE_SPI_TRANSACTION 1
@@ -29,4 +34,27 @@ It use less memory but do not allow extended characters in file names.
 3) Set parameter FAT_SYST to 0 in libraries/FatLib/FatLib.h
 4) Run libraries/examples/FtpServerTest
 
-On Arduino Mega 2560 you have to use SdFat
+====================
+On Arduino Mega 2560
+====================
+
+You have to use SdFat
+
+===============
+FTP Rush client
+===============
+
+To force FTP Rush to use the primary connection for data transfers:
+Go to Tools/Site Manager, right-select you site and Site Properties
+In General, check "Single connection mode"
+
+You may have to adjust the Time Zone.
+
+================
+FileZilla client
+================
+
+To force FileZilla to use the primary connection for data transfers:
+Go to File/Site Manager then select you site.
+In Transfer Settings, check "Limit number of simultaneous connections" and set the maximum to 1
+

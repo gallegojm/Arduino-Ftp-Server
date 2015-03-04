@@ -33,7 +33,7 @@
 #include <Ethernet.h>
 #include <FatLib.h>
 
-#define FTP_SERVER_VERSION "FTP-2014-11-25"
+#define FTP_SERVER_VERSION "FTP-2015-03-02"
 
 #define FTP_USER "arduino"
 #define FTP_PASS "Due"
@@ -65,8 +65,12 @@ private:
   boolean doRetrieve();
   boolean doStore();
   void    closeTransfer();
-  boolean makePathName( char * name, char * path, size_t maxpl );
-  boolean makePath( char * fullName );
+  void    abortTransfer();
+  boolean makePath( char * fullname );
+  boolean makePath( char * fullName, char * param );
+  uint8_t getDateTime( uint16_t * pyear, uint8_t * pmonth, uint8_t * pday,
+                       uint8_t * phour, uint8_t * pminute, uint8_t * second );
+  char *  makeDateTimeStr( char * tstr, uint16_t date, uint16_t time );
   int8_t  readChar();
 
   IPAddress      dataIp;              // IP address of client for data
@@ -87,6 +91,7 @@ private:
   int8_t   cmdStatus,                 // status of ftp command connexion
            transferStatus;            // status of ftp data transfer
   uint32_t millisTimeOut,             // disconnect after 5 min of inactivity
+           millisDelay,
            millisEndConnection,       // 
            millisBeginTrans,          // store time of beginning of a transaction
            bytesTransfered;           //

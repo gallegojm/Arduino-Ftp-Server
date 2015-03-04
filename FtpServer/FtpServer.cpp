@@ -1,6 +1,8 @@
 /*
  * FTP Serveur for Arduino Due and Ethernet shield (W5100) or WIZ820io (W5200)
  * Copyright (c) 2014-2015 by Jean-Michel Gallego
+ *
+ * Please file ReadMe.txt for instructions 
  * 
  * Use Streaming.h from Mial Hart
  *
@@ -46,13 +48,14 @@
  *   RETR, STOR
  *   MKD,  RMD
  *   RNTO, RNFR
+ *   MDTM
  *   FEAT, SIZE
  *   SITE FREE
  *
  * Tested with those clients:
  *   under Windows:
  *     FTP Rush : ok
- *     Filezilla : problem with RETR and STOR
+ *     Filezilla : ok
  *   under Ubuntu:
  *     gFTP : ok
  *     Filezilla : ok
@@ -83,6 +86,9 @@ void FtpServer::init()
   // Tells the ftp server to begin listening for incoming connection
   ftpServer.begin();
   dataServer.begin();
+  millisTimeOut = ( uint32_t ) FTP_TIME_OUT * 60 * 1000;
+  millisDelay = 0;
+  cmdStatus = 0;
   iniVariables();
 }
 
@@ -98,76 +104,77 @@ void FtpServer::iniVariables()
   strcpy( cwdName, "/" );
 
   cwdRNFR[ 0 ] = 0;
-  cmdStatus = 0;
   transferStatus = 0;
-  millisTimeOut = ( uint32_t ) FTP_TIME_OUT * 60 * 1000;
 }
 
 void FtpServer::service()
 {
+  if((int32_t) ( millisDelay - millis() ) > 0 )
+    return;
+
   if( cmdStatus == 0 )
   {
     if( client.connected())
-    {
-      #ifdef FTP_DEBUG
-        Serial << "Closing client" << endl;
-      #endif
-      client.stop();
-    }
+      disconnectClient();
+    cmdStatus = 1;
+  }
+  else if( cmdStatus == 1 )         // Ftp server waiting for connection
+  {
+    abortTransfer();
+    iniVariables();
     #ifdef FTP_DEBUG
       Serial << "Ftp server waiting for connection on port " << FTP_CTRL_PORT << endl;
     #endif
-    cmdStatus = 1;
+    cmdStatus = 2;
   }
-  else if( cmdStatus == 1 )  // Ftp server idle
+  else if( cmdStatus == 2 )         // Ftp server idle
   {
     client = ftpServer.connected();
-    if( client > 0 )   // A client connected
+    if( client > 0 )                // A client connected
     {
       clientConnected();      
       millisEndConnection = millis() + 10 * 1000 ; // wait client id during 10 s.
-      cmdStatus = 2;
+      cmdStatus = 3;
     }
   }
-  else
-    if( ! client.connected() )
-    {
-      disconnectClient();
-      iniVariables();
-    }
-    else if( readChar() > 0 )         // got response
-      if( cmdStatus == 2 )            // Ftp server waiting for user identity
-        if( userIdentity() )
-          cmdStatus = 3;
-        else
-          cmdStatus = 0;
-      else if( cmdStatus == 3 )       // Ftp server waiting for user registration
-        if( userPassword() )
-        {
-          cmdStatus = 4;
-          millisEndConnection = millis() + millisTimeOut;
-        }
-        else
-          cmdStatus = 0;
-      else if( cmdStatus == 4 )       // Ftp server waiting for user command
-        if( ! processCommand())
-          cmdStatus = 0;
-        else
-          millisEndConnection = millis() + millisTimeOut;
- 
-  if( transferStatus == 1 )           // Retrieve data
+  else if( readChar() > 0 )         // got response
+  {
+    if( cmdStatus == 3 )            // Ftp server waiting for user identity
+      if( userIdentity() )
+        cmdStatus = 4;
+      else
+        cmdStatus = 0;
+    else if( cmdStatus == 4 )       // Ftp server waiting for user registration
+      if( userPassword() )
+      {
+        cmdStatus = 5;
+        millisEndConnection = millis() + millisTimeOut;
+      }
+      else
+        cmdStatus = 0;
+    else if( cmdStatus == 5 )       // Ftp server waiting for user command
+      if( ! processCommand())
+        cmdStatus = 0;
+      else
+        millisEndConnection = millis() + millisTimeOut;
+  }
+  else if( ! client.connected() )
+    cmdStatus = 1;
+
+  if( transferStatus == 1 )         // Retrieve data
   {
     if( ! doRetrieve())
       transferStatus = 0;
   }
-  else if( transferStatus == 2 )      // Store data
+  else if( transferStatus == 2 )    // Store data
   {
     if( ! doStore())
       transferStatus = 0;
   }
-  else if( cmdStatus > 1 && ! ((int32_t) ( millisEndConnection - millis() ) > 0 ))
+  else if( cmdStatus > 2 && ! ((int32_t) ( millisEndConnection - millis() ) > 0 ))
   {
     client << "530 Timeout\r\n";
+    millisDelay = millis() + 100;    // delay of 100 ms
     cmdStatus = 0;
   }
 }
@@ -188,6 +195,8 @@ void FtpServer::disconnectClient()
   #ifdef FTP_DEBUG
     Serial << " Disconnecting client" << endl;
   #endif
+  abortTransfer();
+  client << "221 Goodbye\r\n";
   client.stop();
 }
 
@@ -195,7 +204,7 @@ boolean FtpServer::userIdentity()
 {
   if( strcmp( command, "USER" ))
     client << "500 Syntax error\r\n";
-  else if( strcmp( parameters, FTP_USER ))
+  if( strcmp( parameters, FTP_USER ))
     client << "530 \r\n";
   else
   {
@@ -203,7 +212,7 @@ boolean FtpServer::userIdentity()
     strcpy( cwdName, "/" );
     return true;
   }
-  disconnectClient();
+  millisDelay = millis() + 100;  // delay of 100 ms
   return false;
 }
 
@@ -221,7 +230,7 @@ boolean FtpServer::userPassword()
     client << "230 OK.\r\n";
     return true;
   }
-  disconnectClient();
+  millisDelay = millis() + 100;  // delay of 100 ms
   return false;
 }
 
@@ -288,7 +297,6 @@ boolean FtpServer::processCommand()
   //
   else if( ! strcmp( command, "QUIT" ))
   {
-    client << "221 Goodbye\r\n";
     disconnectClient();
     return false;
   }
@@ -399,13 +407,7 @@ boolean FtpServer::processCommand()
   //
   else if( ! strcmp( command, "ABOR" ))
   {
-    if( transferStatus > 0 )
-    {
-      file.close();
-      data.stop(); 
-      client << "426 Transfer aborted" << "\r\n";
-      transferStatus = 0;
-    }
+    abortTransfer();
     client << "226 Data connection closed" << "\r\n";
   }
   //
@@ -473,6 +475,7 @@ boolean FtpServer::processCommand()
       client << "150 Accepted data connection\r\n";
       uint16_t nm = 0;
       FAT_DIR dir;
+      char dtStr[ 15 ];
       if( ! dir.openDir( cwdName ))
         client << "550 Can't open directory " << parameters << "\r\n";
       else
@@ -480,7 +483,9 @@ boolean FtpServer::processCommand()
         while( dir.nextFile())
         {
           data << "Type=" << ( dir.isDir() ? "dir" : "file" ) << ";"
-               << "Size=" << dir.fileSize() << "; " << dir.fileName() << "\r\n";
+               << "Size=" << dir.fileSize() << ";"
+               << "Modify=" << makeDateTimeStr( dtStr, dir.fileModDate(), dir.fileModTime()) << "; " 
+               << dir.fileName() << "\r\n";
           nm ++;
         }
         client << "226-options: -a -l\r\n";
@@ -596,7 +601,6 @@ boolean FtpServer::processCommand()
       #ifdef FTP_DEBUG
         Serial << "Creating directory " << parameters << endl;
       #endif
-//      if( FatFs.makeDir( path ))
       if( FAT.mkdir( path ))
         client << "257 \"" << parameters << "\" created\r\n";
       else
@@ -707,10 +711,48 @@ boolean FtpServer::processCommand()
   else if( ! strcmp( command, "FEAT" ))
   {
     client << "211-Extensions suported:\r\n";
+    client << " MDTM\r\n";
     client << " MLSD\r\n";
     client << " SIZE\r\n";
     client << " SITE FREE\r\n";
     client << "211 End.\r\n";
+  }
+  //
+  //  MDTM - File Modification Time (see RFC 3659)
+  //
+  else if( ! strcmp( command, "MDTM" ))
+  {
+    char path[ FTP_CWD_SIZE ];
+    char * fname = parameters;
+    uint16_t year;
+    uint8_t month, day, hour, minute, second, setTime;
+    setTime = getDateTime( & year, & month, & day, & hour, & minute, & second );
+    // fname point to file name
+    fname += setTime;
+    if( strlen( fname ) <= 0 )
+      client << "501 No file name\r\n";
+    else if( ! makePath( path, fname ))
+      client << "500 Command line too long\r\n";
+    else if( ! FAT.exists( path ))
+      client << "550 No such file " << parameters << "\r\n";
+    else if( setTime ) // set file modification time
+    {
+      if( FAT.timeStamp( path, year, month, day, hour, minute, second ))
+        client << "200 Ok\r\n";
+      else
+        client << "550 Unable to modify time\r\n";
+    }
+    else // get file modification time
+    {
+      uint16_t date, time;
+      if( FAT.getFileModTime( path, & date, & time ))
+      {
+        char dtStr[ 15 ];
+        client << "213 " << makeDateTimeStr( dtStr, date, time ) << "\r\n";
+      }
+      else
+        client << "550 Unable to retrieve time\r\n";
+    }
   }
   //
   //  SIZE - Size of the file
@@ -754,14 +796,12 @@ boolean FtpServer::processCommand()
 
 int FtpServer::dataConnect()
 {
-  if( dataPassiveConn )
-  {
-    if( ! data )
+  if( ! data.connected() )
+    if( dataPassiveConn )
       data = dataServer.connected();
-    return data;
-  }
-  else
-    return data.connect( dataIp, dataPort );
+    else
+      data.connect( dataIp, dataPort );
+  return data;
 }
 
 boolean FtpServer::doRetrieve()
@@ -808,6 +848,20 @@ void FtpServer::closeTransfer()
   
   file.close();
   data.stop();
+}
+
+void FtpServer::abortTransfer()
+{
+  if( transferStatus > 0 )
+  {
+    file.close();
+    data.stop(); 
+    client << "426 Transfer aborted" << "\r\n";
+    #ifdef FTP_DEBUG
+      Serial << "Transfer aborted!" << endl;
+    #endif
+  }
+  transferStatus = 0;
 }
 
 // Read a char from client connected to ftp server
@@ -895,26 +949,91 @@ int8_t FtpServer::readChar()
 
 boolean FtpServer::makePath( char * fullName )
 {
+  return makePath( fullName, parameters );
+}
+
+boolean FtpServer::makePath( char * fullName, char * param )
+{
+  if( param == NULL )
+    param = parameters;
+    
   // Root or empty?
-  if( strcmp( parameters, "/" ) == 0 || strlen( parameters ) == 0 )
+  if( strcmp( param, "/" ) == 0 || strlen( param ) == 0 )
   {
     strcpy( fullName, "/" );
     return true;
   }
   // If relative path, concatenate with current dir
-  if( parameters[0] != '/' ) 
+  if( param[0] != '/' ) 
   {
     strcpy( fullName, cwdName );
     if( fullName[ strlen( fullName ) - 1 ] != '/' )
       strncat( fullName, "/", FTP_CWD_SIZE );
-    strncat( fullName, parameters, FTP_CWD_SIZE );
+    strncat( fullName, param, FTP_CWD_SIZE );
   }
   else
-    strcpy( fullName, parameters );
+    strcpy( fullName, param );
   // If ends with '/', remove it
   uint16_t strl = strlen( fullName ) - 1;
   if( fullName[ strl ] == '/' && strl > 1 )
     fullName[ strl ] = 0;
   return strlen( fullName ) < FTP_CWD_SIZE;
+}
+
+// Calculate year, month, day, hour, minute and second
+//   from first parameter sent by MDTM command (YYYYMMDDHHMMSS)
+//
+// parameters:
+//   pyear, pmonth, pday, phour, pminute and psecond: pointer of
+//     variables where to store data
+//
+// return:
+//    0 if parameter is not YYYYMMDDHHMMSS
+//    length of parameter + space
+
+uint8_t FtpServer::getDateTime( uint16_t * pyear, uint8_t * pmonth, uint8_t * pday,
+                                uint8_t * phour, uint8_t * pminute, uint8_t * psecond )
+{
+  char dt[ 15 ];
+
+  // Date/time are expressed as a 14 digits long string
+  //   terminated by a space and followed by name of file
+  if( strlen( parameters ) < 15 || parameters[ 14 ] != ' ' )
+    return 0;
+  for( uint8_t i = 0; i < 14; i++ )
+    if( ! isdigit( parameters[ i ]))
+      return 0;
+
+  strncpy( dt, parameters, 14 );
+  dt[ 14 ] = 0;
+  * psecond = atoi( dt + 12 ); 
+  dt[ 12 ] = 0;
+  * pminute = atoi( dt + 10 );
+  dt[ 10 ] = 0;
+  * phour = atoi( dt + 8 );
+  dt[ 8 ] = 0;
+  * pday = atoi( dt + 6 );
+  dt[ 6 ] = 0 ;
+  * pmonth = atoi( dt + 4 );
+  dt[ 4 ] = 0 ;
+  * pyear = atoi( dt );
+  return 15;
+}
+
+// Create string YYYYMMDDHHMMSS from date and time
+//
+// parameters:
+//    date, time 
+//    tstr: where to store the string. Must be at least 15 characters long
+//
+// return:
+//    pointer to tstr
+
+char * FtpServer::makeDateTimeStr( char * tstr, uint16_t date, uint16_t time )
+{
+  sprintf( tstr, "%04u%02u%02u%02u%02u%02u",
+           (( date & 0xFE00 ) >> 9 ) + 1980, ( date & 0x01E0 ) >> 5, date & 0x001F,
+           ( time & 0xF800 ) >> 11, ( time & 0x07E0 ) >> 5, ( time & 0x001F ) << 1 );            
+  return tstr;
 }
 
