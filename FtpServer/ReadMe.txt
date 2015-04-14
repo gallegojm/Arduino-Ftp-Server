@@ -31,8 +31,10 @@ It use less memory but do not allow extended characters in file names.
     #define SD_SPI_CONFIGURATION 1
     #define ENABLE_SPI_TRANSACTION 1
     #define ENABLE_SPI_YIELD 1
-3) Set parameter FAT_SYST to 0 in libraries/FatLib/FatLib.h
-4) Run libraries/examples/FtpServerTest
+3) Comment out lines 40-46 in file libraries/SdFat/utility/iostream.h
+    to avoid double definition of endl
+4) Set parameter FAT_SYST to 0 in libraries/FatLib/FatLib.h
+5) Run libraries/examples/FtpServerTest
 
 ====================
 On Arduino Mega 2560

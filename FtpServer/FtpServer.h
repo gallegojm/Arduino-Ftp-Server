@@ -33,7 +33,7 @@
 #include <Ethernet.h>
 #include <FatLib.h>
 
-#define FTP_SERVER_VERSION "FTP-2015-03-02"
+#define FTP_SERVER_VERSION "FTP-2015-04-08"
 
 #define FTP_USER "arduino"
 #define FTP_PASS "Due"
@@ -42,7 +42,7 @@
 #define FTP_DATA_PORT_DFLT 20     // Default data port in active mode
 #define FTP_DATA_PORT_PASV 55600  // Data port in passive mode
 
-#define FTP_TIME_OUT 5            // Disconnect client after 5 minutes of inactivity
+#define FTP_TIME_OUT  5           // Disconnect client after 5 minutes of inactivity
 #define FTP_CMD_SIZE _MAX_LFN + 8 // max size of a command
 #define FTP_CWD_SIZE _MAX_LFN + 8 // max size of a directory name
 #define FTP_FIL_SIZE _MAX_LFN     // max size of a file name
@@ -81,11 +81,11 @@ private:
   
   boolean  dataPassiveConn;
   uint16_t dataPort;
-  uint8_t  buf[ FTP_BUF_SIZE ];       // data buffer for transfers
+  char     buf[ FTP_BUF_SIZE ];       // data buffer for transfers
   char     cmdLine[ FTP_CMD_SIZE ];   // where to store incoming char from client
   char     cwdName[ FTP_CWD_SIZE ];   // name of current directory
-  char     cwdRNFR[ FTP_CWD_SIZE ];   // name of origin directory for Rename command
   char     command[ 5 ];              // command sent by client
+  boolean  rnfrCmd;                   // previous command was RNFR
   char *   parameters;                // point to begin of parameters sent by client
   uint16_t iCL;                       // pointer to cmdLine next incoming char
   int8_t   cmdStatus,                 // status of ftp command connexion

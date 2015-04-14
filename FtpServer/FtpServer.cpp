@@ -2,7 +2,7 @@
  * FTP Serveur for Arduino Due and Ethernet shield (W5100) or WIZ820io (W5200)
  * Copyright (c) 2014-2015 by Jean-Michel Gallego
  *
- * Please file ReadMe.txt for instructions 
+ * Please read file ReadMe.txt for instructions 
  * 
  * Use Streaming.h from Mial Hart
  *
@@ -103,7 +103,7 @@ void FtpServer::iniVariables()
   // Set the root directory
   strcpy( cwdName, "/" );
 
-  cwdRNFR[ 0 ] = 0;
+  rnfrCmd = false;
   transferStatus = 0;
 }
 
@@ -174,7 +174,7 @@ void FtpServer::service()
   else if( cmdStatus > 2 && ! ((int32_t) ( millisEndConnection - millis() ) > 0 ))
   {
     client << "530 Timeout\r\n";
-    millisDelay = millis() + 100;    // delay of 100 ms
+    millisDelay = millis() + 200;    // delay of 200 ms
     cmdStatus = 0;
   }
 }
@@ -277,14 +277,15 @@ boolean FtpServer::processCommand()
     char path[ FTP_CWD_SIZE ];
     if( strcmp( parameters, "." ) == 0 )  // 'CWD .' is the same as PWD command
       client << "257 \"" << cwdName << "\" is your current directory\r\n";
-    else if( ! makePath( path ))
-      client << "500 Command line too long\r\n";
-    else if( ! FAT.exists( path ))
-      client << "550 Can't change directory to " << parameters << "\r\n";
-    else
+    else if( makePath( path ))
     {
-      strcpy( cwdName, path );
-      client << "250 Ok. Current directory is " << cwdName << "\r\n";
+      if( ! FAT.exists( path ))
+        client << "550 Can't change directory to " << parameters << "\r\n";
+      else
+      {
+        strcpy( cwdName, path );
+        client << "250 Ok. Current directory is " << cwdName << "\r\n";
+      }
     }
   }
   //
@@ -418,9 +419,7 @@ boolean FtpServer::processCommand()
     char path[ FTP_CWD_SIZE ];
     if( strlen( parameters ) == 0 )
       client << "501 No file name\r\n";
-    else if( ! makePath( path ))
-      client << "500 Command line too long\r\n";
-    else
+    else if( makePath( path ))
     {
       if( ! FAT.exists( path ))
         client << "550 File " << parameters << " not found\r\n";
@@ -446,7 +445,7 @@ boolean FtpServer::processCommand()
       uint16_t nm = 0;
       FAT_DIR dir;
       if( ! dir.openDir( cwdName ))
-        client << "550 Can't open directory " << parameters << "\r\n";
+        client << "550 Can't open directory " << cwdName << "\r\n";
       else
       {
         while( dir.nextFile())
@@ -458,8 +457,8 @@ boolean FtpServer::processCommand()
           data << ",\t" << dir.fileName() << "\r\n";
           nm ++;
         }
+        client << "226 " << nm << " matches total\r\n";
       }
-      client << "226 " << nm << " matches total\r\n";
       data.stop();
     }
   }
@@ -536,24 +535,25 @@ boolean FtpServer::processCommand()
     char path[ FTP_CWD_SIZE ];
     if( strlen( parameters ) == 0 )
       client << "501 No file name\r\n";
-    else if( ! makePath( path ))
-      client << "500 Command line too long\r\n";
-    else if( ! FAT.exists( path ))
-      client << "550 File " << parameters << " not found\r\n";
-    else if( ! file.open( path, O_READ ))
-      client << "450 Can't open " << parameters << "\r\n";
-    else if( ! dataConnect())
-      client << "425 No data connection\r\n";
-    else
+    else if( makePath( path ))
     {
-      #ifdef FTP_DEBUG
-        Serial << "Sending " << parameters << endl;
-      #endif
-      client << "150-Connected to port " << dataPort << "\r\n";
-      client << "150 " << file.fileSize() << " bytes to download\r\n";
-      millisBeginTrans = millis();
-      bytesTransfered = 0;
-      transferStatus = 1;
+      if( ! FAT.exists( path ))
+        client << "550 File " << parameters << " not found\r\n";
+      else if( ! file.open( path, O_READ ))
+        client << "450 Can't open " << parameters << "\r\n";
+      else if( ! dataConnect())
+        client << "425 No data connection\r\n";
+      else
+      {
+        #ifdef FTP_DEBUG
+          Serial << "Sending " << parameters << endl;
+        #endif
+        client << "150-Connected to port " << dataPort << "\r\n";
+        client << "150 " << file.fileSize() << " bytes to download\r\n";
+        millisBeginTrans = millis();
+        bytesTransfered = 0;
+        transferStatus = 1;
+      }
     }
   }
   //
@@ -564,24 +564,25 @@ boolean FtpServer::processCommand()
     char path[ FTP_CWD_SIZE ];
     if( strlen( parameters ) == 0 )
       client << "501 No file name\r\n";
-    else if( ! makePath( path ))
-      client << "500 Command line too long\r\n";
-    else if( ! file.open( path, O_CREAT | O_WRITE ))
-      client << "451 Can't open/create " << parameters << "\r\n";
-    else if( ! dataConnect())
+    else if( makePath( path ))
     {
-      client << "425 No data connection\r\n";
-      file.close();
-    }
-    else
-    {
-      #ifdef FTP_DEBUG
-        Serial << "Receiving " << parameters << endl;
-      #endif
-      client << "150 Connected to port " << dataPort << "\r\n";
-      millisBeginTrans = millis();
-      bytesTransfered = 0;
-      transferStatus = 2;
+      if( ! file.open( path, O_CREAT | O_WRITE ))
+        client << "451 Can't open/create " << parameters << "\r\n";
+      else if( ! dataConnect())
+      {
+        client << "425 No data connection\r\n";
+        file.close();
+      }
+      else
+      {
+        #ifdef FTP_DEBUG
+          Serial << "Receiving " << parameters << endl;
+        #endif
+        client << "150 Connected to port " << dataPort << "\r\n";
+        millisBeginTrans = millis();
+        bytesTransfered = 0;
+        transferStatus = 2;
+      }
     }
   }
   //
@@ -592,19 +593,20 @@ boolean FtpServer::processCommand()
     char path[ FTP_CWD_SIZE ];
     if( strlen( parameters ) == 0 )
       client << "501 No directory name\r\n";
-    else if( ! makePath( path ))
-      client << "500 Command line too long\r\n";
-    else if( FAT.exists( path ))
-      client << "521 \"" << parameters << "\" directory already exists\r\n";
-    else
+    else if( makePath( path ))
     {
-      #ifdef FTP_DEBUG
-        Serial << "Creating directory " << parameters << endl;
-      #endif
-      if( FAT.mkdir( path ))
-        client << "257 \"" << parameters << "\" created\r\n";
+      if( FAT.exists( path ))
+        client << "521 \"" << parameters << "\" directory already exists\r\n";
       else
-        client << "550 Can't create \"" << parameters << "\"\r\n";
+      {
+        #ifdef FTP_DEBUG
+          Serial << "Creating directory " << parameters << endl;
+        #endif
+        if( FAT.mkdir( path ))
+          client << "257 \"" << parameters << "\" created\r\n";
+        else
+          client << "550 Can't create \"" << parameters << "\"\r\n";
+      }
     }
   }
   //
@@ -615,9 +617,7 @@ boolean FtpServer::processCommand()
     char path[ FTP_CWD_SIZE ];
     if( strlen( parameters ) == 0 )
       client << "501 No directory name\r\n";
-    else if( ! makePath( path ))
-      client << "500 Command line too long\r\n";
-    else
+    else if( makePath( path ))
     {
       #ifdef FTP_DEBUG
         Serial << "Deleting " << path << endl;
@@ -635,19 +635,21 @@ boolean FtpServer::processCommand()
   //
   else if( ! strcmp( command, "RNFR" ))
   {
-    cwdRNFR[ 0 ] = 0;
+    buf[ 0 ] = 0;
     if( strlen( parameters ) == 0 )
       client << "501 No file name\r\n";
-    else if( ! makePath( cwdRNFR ))
-      client << "500 Command line too long\r\n";
-    else if( ! FAT.exists( cwdRNFR ))
-      client << "550 File " << parameters << " not found\r\n";
-    else
+    else if( makePath( buf ))
     {
-      #ifdef FTP_DEBUG
-        Serial << "Renaming " << cwdRNFR << endl;
-      #endif
-      client << "350 RNFR accepted - file exists, ready for destination\r\n";      
+      if( ! FAT.exists( buf ))
+        client << "550 File " << parameters << " not found\r\n";
+      else
+      {
+        #ifdef FTP_DEBUG
+          Serial << "Renaming " << buf << endl;
+        #endif
+        client << "350 RNFR accepted - file exists, ready for destination\r\n";     
+        rnfrCmd = true;
+      }
     }
   }
   //
@@ -655,48 +657,51 @@ boolean FtpServer::processCommand()
   //
   else if( ! strcmp( command, "RNTO" ))
   {
+  Serial << buf << endl;
     char path[ FTP_CWD_SIZE ];
     char dir[ FTP_FIL_SIZE ];
-    if( strlen( cwdRNFR ) == 0 )
+    if( strlen( buf ) == 0 || ! rnfrCmd )
       client << "503 Need RNFR before RNTO\r\n";
     else if( strlen( parameters ) == 0 )
       client << "501 No file name\r\n";
-    else if( ! makePath( path ))
-      client << "500 Command line too long\r\n";
-    else if( FAT.exists( path ))
-      client << "553 " << parameters << " already exists\r\n";
-    else
+    else if( makePath( path ))
     {
-      strcpy( dir, path );
-      char * psep = strrchr( dir, '/' );
-      boolean fail = psep == NULL;
-      if( ! fail )
+      if( FAT.exists( path ))
+        client << "553 " << parameters << " already exists\r\n";
+      else
       {
-        if( psep == dir )
-          psep ++;
-        * psep = 0;
-        #if FAT_SYST == 0
-          fail = ! file.open( dir ) || ! file.isDir();
-          file.close();
-        #else
-          fail = ! FAT.isDir( dir );
-        #endif
-        if( fail )
-          client << "550 \"" << dir << "\" is not directory\r\n";
-        else
+        strcpy( dir, path );
+        char * psep = strrchr( dir, '/' );
+        boolean fail = psep == NULL;
+        if( ! fail )
         {
-          #ifdef FTP_DEBUG
-            Serial << "Renaming " << cwdRNFR << " to " << path << endl;
+          if( psep == dir )
+            psep ++;
+          * psep = 0;
+          #if FAT_SYST == 0
+            fail = ! file.open( dir ) || ! file.isDir();
+            file.close();
+          #else
+            fail = ! FAT.isDir( dir );
           #endif
-          if( FAT.rename( cwdRNFR, path ))
-            client << "250 File successfully renamed or moved\r\n";
+          if( fail )
+            client << "550 \"" << dir << "\" is not directory\r\n";
           else
-            fail = true;
+          {
+            #ifdef FTP_DEBUG
+              Serial << "Renaming " << buf << " to " << path << endl;
+            #endif
+            if( FAT.rename( buf, path ))
+              client << "250 File successfully renamed or moved\r\n";
+            else
+              fail = true;
+          }
         }
+        if( fail )
+          client << "451 Rename/move failure\r\n";
       }
-      if( fail )
-        client << "451 Rename/move failure\r\n";
     }
+    rnfrCmd = false;
   }
 
   ///////////////////////////////////////
@@ -731,27 +736,28 @@ boolean FtpServer::processCommand()
     fname += setTime;
     if( strlen( fname ) <= 0 )
       client << "501 No file name\r\n";
-    else if( ! makePath( path, fname ))
-      client << "500 Command line too long\r\n";
-    else if( ! FAT.exists( path ))
-      client << "550 No such file " << parameters << "\r\n";
-    else if( setTime ) // set file modification time
+    else if( makePath( path, fname ))
     {
-      if( FAT.timeStamp( path, year, month, day, hour, minute, second ))
-        client << "200 Ok\r\n";
-      else
-        client << "550 Unable to modify time\r\n";
-    }
-    else // get file modification time
-    {
-      uint16_t date, time;
-      if( FAT.getFileModTime( path, & date, & time ))
+      if( ! FAT.exists( path ))
+        client << "550 No such file " << parameters << "\r\n";
+      else if( setTime ) // set file modification time
       {
-        char dtStr[ 15 ];
-        client << "213 " << makeDateTimeStr( dtStr, date, time ) << "\r\n";
+        if( FAT.timeStamp( path, year, month, day, hour, minute, second ))
+          client << "200 Ok\r\n";
+        else
+          client << "550 Unable to modify time\r\n";
       }
-      else
-        client << "550 Unable to retrieve time\r\n";
+      else // get file modification time
+      {
+        uint16_t date, time;
+        if( FAT.getFileModTime( path, & date, & time ))
+        {
+          char dtStr[ 15 ];
+          client << "213 " << makeDateTimeStr( dtStr, date, time ) << "\r\n";
+        }
+        else
+          client << "550 Unable to retrieve time\r\n";
+      }
     }
   }
   //
@@ -762,16 +768,17 @@ boolean FtpServer::processCommand()
     char path[ FTP_CWD_SIZE ];
     if( strlen( parameters ) == 0 )
       client << "501 No file name\r\n";
-    else if( ! makePath( path ))
-      client << "500 Command line too long\r\n";
-    else if( ! FAT.exists( path ))
-      client << "550 No such file " << parameters << "\r\n";
-    else if( ! file.open( path ))
-      client << "450 Can't open " << parameters << "\r\n";
-    else
+    else if( makePath( path ))
     {
-      client << "213 " << file.fileSize() << "\r\n";
-      file.close();
+      if( ! FAT.exists( path ))
+        client << "550 No such file " << parameters << "\r\n";
+      else if( ! file.open( path ))
+        client << "450 Can't open " << parameters << "\r\n";
+      else
+      {
+        client << "213 " << file.fileSize() << "\r\n";
+        file.close();
+      }
     }
   }
   //
@@ -821,7 +828,7 @@ boolean FtpServer::doStore()
 {
   if( data.connected() )
   {
-    int16_t nb = data.read( buf, FTP_BUF_SIZE );
+    int16_t nb = data.read((uint8_t *) buf, FTP_BUF_SIZE );
     if( nb > 0 )
     {
       // Serial << millis() << " " << nb << endl;
@@ -872,7 +879,7 @@ void FtpServer::abortTransfer()
 //    -2 if buffer cmdLine is full
 //    -1 if line not completed
 //     0 if empty line received
-//    length of cmdLine (positive) if no empy line received 
+//    length of cmdLine (positive) if no empty line received 
 
 int8_t FtpServer::readChar()
 {
@@ -906,16 +913,18 @@ int8_t FtpServer::readChar()
         {
           rc = iCL;
           // search for space between command and parameters
-          char * pSpace = strchr( cmdLine, ' ' );
-          if( pSpace != NULL )
+          parameters = strchr( cmdLine, ' ' );
+          if( parameters != NULL )
           {
-            if( pSpace - cmdLine > 4 )
+            if( parameters - cmdLine > 4 )
               rc = -2; // Syntax error
             else
             {
-              strncpy( command, cmdLine, pSpace - cmdLine );
-              command[ pSpace - cmdLine ] = 0;
-              parameters = pSpace + 1;
+              strncpy( command, cmdLine, parameters - cmdLine );
+              command[ parameters - cmdLine ] = 0;
+              
+              while( * ( ++ parameters ) == ' ' )
+                ;
             }
           }
           else if( strlen( cmdLine ) > 4 )
@@ -977,7 +986,11 @@ boolean FtpServer::makePath( char * fullName, char * param )
   uint16_t strl = strlen( fullName ) - 1;
   if( fullName[ strl ] == '/' && strl > 1 )
     fullName[ strl ] = 0;
-  return strlen( fullName ) < FTP_CWD_SIZE;
+  if( strlen( fullName ) < FTP_CWD_SIZE )
+    return true;
+
+  client << "500 Command line too long\r\n";
+  return false;
 }
 
 // Calculate year, month, day, hour, minute and second
