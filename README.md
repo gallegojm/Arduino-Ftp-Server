@@ -1,7 +1,6 @@
 Arduino-Ftp-Server
 ==================
 
-===============================
 How to use FtpServer on Arduino
 ===============================
 
@@ -26,7 +25,6 @@ Tested with Ide 1.8.5 on Mega2560 and Due with ethernet module W5100, W5200 or W
        protocol set to normal FTP server (no encryption),
        select single data connection mode when available)
 
-===========
 Definitions
 ===========
 
@@ -45,7 +43,6 @@ In FtpServer.h most definitions are commented
                But it can be reduced if memory usage is critical.
   FTP_TIME_OUT and FTP_AUTH_TIME_OUT are expressed in seconds.
        
-========================
 Streaming & ExtStreaming       
 ========================
 
@@ -54,7 +51,6 @@ I have to remove 'endl' definition as it colides with SdFat.
 I replace it with 'eol' and rename the library to ExtStreaming.
 It is included in FtpServer library so you don't need to download it.
 
-================
 SdFat & ExtSdFat
 ================
 
@@ -63,14 +59,12 @@ ExtSdFat and ExtDir are two classes than extend SdFat and SdFile from William Gr
 Last version of SdFat supports long file name, so it is no more necessary to use FatFs as in
   previous version of FtpServer
 
-========
 Ethernet
 ========
 
 With new version (2.0.0) of this Arduino library, it is no more necessary to add function
 connected() to EthernetServer class
 
-===========
 FTP clients
 ===========
 
