@@ -31,17 +31,17 @@ Definitions
 You may have to modify some of the definitions
 
 In ExtSdFat.h
-  _MAX_LFN  is the longest size for a file name, including the complete path.
+_MAX_LFN  is the longest size for a file name, including the complete path.
             It is set to 255 but can be reduced if memory usage is critical.
   
 In FtpServer.h most definitions are commented
-  FTP_DEBUG if defined, print to the Ide serial monitor information for debugging.
-  FTP_USER  the user' name
-  FTP_PASS  his password
-  FTP_BUF_SIZE is the size of the file buffer for read and write operations.
-               The value 1024 gives the best speed results.
-               But it can be reduced if memory usage is critical.
-  FTP_TIME_OUT and FTP_AUTH_TIME_OUT are expressed in seconds.
+FTP_DEBUG if defined, print to the Ide serial monitor information for debugging.
+FTP_USER  the user' name
+FTP_PASS  his password
+FTP_BUF_SIZE is the size of the file buffer for read and write operations.
+The value 1024 gives the best speed results.
+But it can be reduced if memory usage is critical.
+FTP_TIME_OUT and FTP_AUTH_TIME_OUT are expressed in seconds.
        
 Streaming & ExtStreaming       
 ========================
