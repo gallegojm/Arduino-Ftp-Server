@@ -23,7 +23,7 @@
 
 // Define Chip Select for your SD card according to hardware 
 // #define CS_SDCARD 4  // SD card reader of Ehernet shield
-#define CS_SDCARD 53 // Chip Select for SD card reader on LaRocola
+#define CS_SDCARD 53 // Chip Select for Arduino Due
 
 // Define Reset pin for W5200 or W5500
 // set to -1 for other ethernet chip or if Arduino reset board is used
@@ -34,12 +34,11 @@ FtpServer ftpSrv;
 
 // Mac address of ethernet adapter
 // byte mac[] = { 0x90, 0xa2, 0xda, 0x00, 0x00, 0x00 };
-// byte mac[] = { 0x00, 0xaa, 0xbb, 0xcc, 0xde, 0xef };
-byte mac[] = { 0xde, 0xad, 0xbe, 0xef, 0xfe, 0xef };
+byte mac[] = { 0x00, 0xaa, 0xbb, 0xcc, 0xde, 0xef };
 
 // IP address of FTP server
 // if set to 0, use DHCP for the routeur to assign IP
-// IPAddress serverIp( 192, 168, 1, 40 );
+// IPAddress serverIp( 192, 168, 1, 100 );
 IPAddress serverIp( 0, 0, 0, 0 );
 
 /*******************************************************************************
@@ -54,8 +53,8 @@ void setup()
   Serial << F( "=== Test of FTP Server ===" ) << eol;
 
   // If other chips are connected to SPI bus, set to high the pin connected to their CS
-  // pinMode( 4, OUTPUT ); 
-  // digitalWrite( 4, HIGH );
+  // pinMode( 10, OUTPUT ); 
+  // digitalWrite( 10, HIGH );
 
   // Initialize the SD card.
   Serial << F("Mount the SD card with library SdFat ... ");
