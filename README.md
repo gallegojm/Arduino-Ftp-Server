@@ -101,7 +101,7 @@ In General, check "One transfer at a time"
   
 FileZilla:
 To force FileZilla to use the primary connection for data transfers:
-Go to File/Site Manager then select you site.
+Go to File/Site Manager then select your site.
 In Transfer Settings, check "Limit number of simultaneous connections" and set the maximum to 1
 
 Firefox:
