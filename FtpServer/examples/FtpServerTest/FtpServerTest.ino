@@ -16,14 +16,18 @@
  *                The value 1024 gives the best speed results.
  *                But it can be reduced if memory usage is critical.
  *   FTP_TIME_OUT and FTP_AUTH_TIME_OUT are expressed in seconds.
+ *
+ * In library Ethernet, if you do not use W5100 chip, try to uncomment line 28
+ *   //#define SPI_ETHERNET_SETTINGS SPISettings(30000000, MSBFIRST, SPI_MODE0)
+ *   to increase upload/download speed
  */
 
 #include <FtpServer.h>
 #include <FreeStack.h>
 
 // Define Chip Select for your SD card according to hardware 
-// #define CS_SDCARD 4  // SD card reader of Ehernet shield
-#define CS_SDCARD 53 // Chip Select for Arduino Due
+#define CS_SDCARD 4  // SD card reader of Ehernet shield
+//#define CS_SDCARD 53 // Chip Select for Arduino Due
 
 // Define Reset pin for W5200 or W5500
 // set to -1 for other ethernet chip or if Arduino reset board is used

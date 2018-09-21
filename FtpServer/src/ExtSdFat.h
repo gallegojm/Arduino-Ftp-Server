@@ -49,5 +49,16 @@ private:
   uint16_t filelwt;
 };
 
+class ExtFile : public SdFile
+{
+public:
+  int      writeString( char * buf ) { return write( buf, strlen( buf )); }; 
+  bool     writeChar( char car )     { return write( & car, 1 ); };
+  int16_t  readString( char * buf, int len );
+  char     readChar()                { return read(); };
+  uint16_t readInt();
+  uint16_t readHex();
+};
+
 #endif // EXT_SDFAT_H
 

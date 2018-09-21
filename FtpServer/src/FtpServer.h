@@ -33,9 +33,9 @@
 #include "ExtSdFat.h"
 
 // Uncomment to print debugging info to console attached to Arduino
-#define FTP_DEBUG
+//#define FTP_DEBUG
 
-#define FTP_SERVER_VERSION "FTP-2018-09-06"
+#define FTP_SERVER_VERSION "FTP-2018-09-19"
 
 #define FTP_USER "arduino"        // User'name
 #define FTP_PASS "Due"            // His password
@@ -60,7 +60,10 @@ enum ftpCmd { FTP_Stop = 0,       // In this stage, stop any connection
 
 enum ftpTransfer { FTP_Close = 0, // In this stage, close data channel
                    FTP_Retrieve,  //  retrieve file
-                   FTP_Store };   //  store file
+                   FTP_Store,     //  store file
+                   FTP_List,      //  list of files
+                   FTP_Nlst,      //  list of name of files
+                   FTP_Mlsd };    //  listing for machine processing
 
 class FtpServer
 {
@@ -75,8 +78,11 @@ private:
   boolean processCommand();
   boolean haveParameter();
   int     dataConnect( boolean out150 = true );
+  boolean dataConnected();
   boolean doRetrieve();
   boolean doStore();
+  boolean doList();
+  boolean doMlsd();
   void    closeTransfer();
   void    abortTransfer();
   boolean makePath( char * fullName, char * param = NULL );
@@ -86,13 +92,15 @@ private:
                        uint8_t * phour, uint8_t * pminute, uint8_t * second );
   char *  makeDateTimeStr( char * tstr, uint16_t date, uint16_t time );
   int8_t  readChar();
+  boolean legalChar( char c );
   
   IPAddress      dataIp;              // IP address of client for data
   EthernetClient client;
   EthernetClient data;
   
   SdFile   file;
-
+  ExtDir   dir;
+  
   ftpCmd   cmdStage;                  // stage of ftp command connexion
   ftpTransfer transferStage;          // stage of data connexion
   
@@ -105,6 +113,8 @@ private:
   boolean  rnfrCmd;                   // previous command was RNFR
   char *   parameter;                 // point to begin of parameters sent by client
   uint16_t iCL;                       // pointer to cmdLine next incoming char
+  uint16_t nbMatch;
+
   uint32_t millisDelay,               //
            millisEndConnection,       // 
            millisBeginTrans,          // store time of beginning of a transaction
@@ -112,5 +122,3 @@ private:
 };
 
 #endif // FTP_SERVER_H
-
-

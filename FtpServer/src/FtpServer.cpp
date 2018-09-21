@@ -98,7 +98,9 @@ void FtpServer::iniVariables()
 void FtpServer::service()
 {
   #ifdef FTP_DEBUG
-    // int8_t   cmdStage0 = cmdStage;
+    int8_t cmdStage0 = cmdStage,
+           transferStage0 = transferStage,
+           data0 = data.status();
   #endif
   
   if((int32_t) ( millisDelay - millis() ) > 0 )
@@ -107,10 +109,11 @@ void FtpServer::service()
   if( cmdStage == FTP_Stop )
   {
     if( client.connected())
+//    if( client )
       disconnectClient();
     cmdStage = FTP_Init;
   }
-  else if( cmdStage == FTP_Init )   // Ftp server waiting for connection
+  else if( cmdStage == FTP_Init )       // Ftp server waiting for connection
   {
     abortTransfer();
     iniVariables();
@@ -119,10 +122,11 @@ void FtpServer::service()
     #endif
     cmdStage = FTP_Client;
   }
-  else if( cmdStage == FTP_Client ) // Ftp server idle
+  else if( cmdStage == FTP_Client )     // Ftp server idle
   {
     client = ftpServer.accept();
-    if( client )                        // A client connected
+    //if( client )                        // A client connected
+    if( client.connected())             // A client connected
     {
       clientConnected();
       millisEndConnection = millis() + 1000L * FTP_AUTH_TIME_OUT; // wait client id for 10 s.
@@ -152,6 +156,17 @@ void FtpServer::service()
     if( ! doStore())
       transferStage = FTP_Close;
   }
+  else if( transferStage == FTP_List ||
+           transferStage == FTP_Nlst)   // LIST or NLST
+  {
+    if( ! doList())
+      transferStage = FTP_Close;
+  }
+  else if( transferStage == FTP_Mlsd )  // MLSD listing
+  {
+    if( ! doMlsd())
+      transferStage = FTP_Close;
+  }
   else if( cmdStage > FTP_Client &&
            ! ((int32_t) ( millisEndConnection - millis() ) > 0 ))
   {
@@ -161,8 +176,12 @@ void FtpServer::service()
   }
 
   #ifdef FTP_DEBUG
-    // if( cmdStage != cmdStage0 )
-    //   Serial << F("  Status: ") << cmdStage << eol;
+    uint8_t dstat = data.status();
+    if( cmdStage != cmdStage0 || transferStage != transferStage0 ||
+        dstat != data0 )
+      Serial << F("  Command: ") << cmdStage
+             << F("  Transfer: ") << transferStage
+             << F("  Data: ") << _HEX( dstat ) << eol;
   #endif
 }
 
@@ -444,31 +463,24 @@ boolean FtpServer::processCommand()
         client << F("450 Can't delete ") << parameter << eol;
   }
   //
-  //  LIST - List && NLST - Name List
+  //  LIST - List , NLST - Name List
+  //  MLST - Listing for Machine Processing (see RFC 3659)
   //
-  else if( CommandIs( "LIST" ) || CommandIs( "NLST" ))
+  else if( CommandIs( "LIST" ) || CommandIs( "NLST" ) || CommandIs( "MLSD" ))
   {
-    boolean list = CommandIs( "LIST" );
     if( dataConnect())
-    {
-      uint16_t nm = 0;
-      ExtDir dir;
       if( openDir( & dir ))
       {
-        while( dir.nextFile())
-        {
-          if( list )
-            if( dir.isDir() )
-              data << F("+/,\t");
-            else
-              data << F("+r,s") << dir.fileSize() << F(",\t");
-          data << dir.fileName() << eol;
-          nm ++;
-        }
-        client << F("226 ") << nm << F(" matches total") << eol;
+        nbMatch = 0;
+        if( CommandIs( "LIST" ))
+          transferStage = FTP_List;
+        else if( CommandIs( "NLST" ))
+          transferStage = FTP_Nlst;
+        else
+          transferStage = FTP_Mlsd;
       }
-      data.stop();
-    }
+      else
+        data.stop();
   }
   //
   //  MLST - Listing for Machine Processing (see RFC 3659)
@@ -478,49 +490,25 @@ boolean FtpServer::processCommand()
     char path[ FTP_CWD_SIZE ];
     if( haveParameter() && makeExistsPath( path ))
     {
-      ExtDir dir;
       char dtStr[ 15 ];
       uint16_t dat, tim;
       if( ! dir.open( path ))
         client << F("450 Can't open ") << parameter << eol;
-      else if( ! sd.getFileModTime( path, & dat, & tim ))
-        client << F("550 Unable to retrieve time for ") << parameter << eol;
       else
       {
-        client << F("250-Begin") << eol;
-        client << F(" Type=") << ( dir.isFile() ? F("file") : F("dir"))
-               << F(";Modify=") << makeDateTimeStr( dtStr, dat, tim ) 
-               << F(";Size=") << dir.fileSize()
-               << F("; ") << path << eol;
-        client << F("250 End.") << eol;
-        file.close();
-      }
-    }
-  }
-  //
-  //  MLSD - Listing for Machine Processing (see RFC 3659)
-  //
-  else if( CommandIs( "MLSD" ))
-  {
-    if( dataConnect())
-    {
-      uint16_t nm = 0;
-      ExtDir dir;
-      if( openDir( & dir ))
-      {
-        char dtStr[ 15 ];
-        while( dir.nextFile())
+        if( ! sd.getFileModTime( path, & dat, & tim ))
+          client << F("550 Unable to retrieve time for ") << parameter << eol;
+        else
         {
-          data << F("Type=") << ( dir.isDir() ? F("dir") : F("file"))
-               << F(";Modify=") << makeDateTimeStr( dtStr, dir.fileModDate(), dir.fileModTime()) 
-               << F(";Size=") << dir.fileSize() 
-               << F("; ")<< dir.fileName() << eol;
-          nm ++;
+          client << F("250-Begin") << eol;
+          client << F(" Type=") << ( dir.isFile() ? F("file") : F("dir"))
+                 << F(";Modify=") << makeDateTimeStr( dtStr, dat, tim ) 
+                 << F(";Size=") << dir.fileSize()
+                 << F("; ") << path << eol;
+          client << F("250 End.") << eol;
         }
-        client << F("226-options: -a -l") << eol;
-        client << F("226 ") << nm << F(" matches total") << eol;
+        dir.close();
       }
-      data.stop();
     }
   }
   //
@@ -757,30 +745,37 @@ boolean FtpServer::processCommand()
 
 int FtpServer::dataConnect( boolean out150 )
 {
-  boolean dataConnected;
-  //if( data )
-  //  data.stop();
-  if( dataPassiveConn )
-  {
-    uint16_t count = 1000; // wait up to a second
-    while( ! data && count -- > 0 )
+  if( ! data.connected())
+    if( dataPassiveConn )
     {
-      data = dataServer.accept();
-      delay( 1 );
+      uint16_t count = 1000; // wait up to a second
+      while( ! data.connected() && count -- > 0 )
+      {
+        data = dataServer.accept();
+        delay( 1 );
+      }
     }
-    dataConnected = data;
-  }
-  else
-    dataConnected = data.connect( dataIp, dataPort );
+    else
+      data.connect( dataIp, dataPort );
 
-  if( ! dataConnected )
+  if( ! data.connected())
     client << F("425 No data connection") << eol;
   else if( out150 )
     client << F("150 Accepted data connection to port ") << dataPort << eol;
   
-  return dataConnected;
+  return data.connected();
 }
 
+boolean FtpServer::dataConnected()
+{
+  if( data.connected())
+    return true;
+  data.stop();
+  client << F("426 Data connection closed. Transfer aborted") << eol;
+  transferStage = FTP_Close;
+  return false;
+}
+ 
 boolean FtpServer::openDir( ExtDir * pdir, char * sdir )
 {
   if( sdir == NULL )
@@ -793,6 +788,11 @@ boolean FtpServer::openDir( ExtDir * pdir, char * sdir )
 
 boolean FtpServer::doRetrieve()
 {
+  if( ! dataConnected())
+  {
+    file.close();
+    return false;
+  }
   int16_t nb = file.read( buf, FTP_BUF_SIZE );
   if( nb > 0 )
   {
@@ -806,18 +806,72 @@ boolean FtpServer::doRetrieve()
 
 boolean FtpServer::doStore()
 {
-  if( data.connected() )
+  if( data.connected())
   {
     int16_t nb = data.read((uint8_t *) buf, FTP_BUF_SIZE );
+    int16_t rc = 0;
     if( nb > 0 )
     {
       // Serial << millis() << " " << nb << eol;
-      file.write( buf, nb );
+      rc = file.write( buf, nb );
       bytesTransfered += nb;
     }
-    return true;
+    if( nb < 0 || rc == nb  )
+      return true;
+    client << F("552 Probably insufficient storage space") << eol;
+    file.close();
+    data.stop();
+    return false;
   }
   closeTransfer();
+  return false;
+}
+
+boolean FtpServer::doList()
+{
+  if( ! dataConnected())
+  {
+    dir.close();
+    return false;
+  }
+  if( dir.nextFile())
+  {
+    if( transferStage == FTP_List )
+      if( dir.isDir() )
+        data << F("+/,\t");
+      else
+        data << F("+r,s") << dir.fileSize() << F(",\t");
+    data << dir.fileName() << eol;
+    nbMatch ++;
+    return true;
+  }
+  client << F("226 ") << nbMatch << F(" matches total") << eol;
+  dir.close();
+  data.stop();
+  return false;
+}
+
+boolean FtpServer::doMlsd()
+{
+  if( ! dataConnected())
+  {
+    dir.close();
+    return false;
+  }
+  if( dir.nextFile())
+  {
+    char dtStr[ 15 ];
+    data << F("Type=") << ( dir.isDir() ? F("dir") : F("file"))
+         << F(";Modify=") << makeDateTimeStr( dtStr, dir.fileModDate(), dir.fileModTime()) 
+         << F(";Size=") << dir.fileSize() 
+         << F("; ")<< dir.fileName() << eol;
+    nbMatch ++;
+    return true;
+  }
+  client << F("226-options: -a -l") << eol;
+  client << F("226 ") << nbMatch << F(" matches total") << eol;
+  dir.close();
+  data.stop();
   return false;
 }
 
@@ -846,13 +900,15 @@ void FtpServer::abortTransfer()
   if( transferStage != FTP_Close )
   {
     file.close();
-    data.stop(); 
+    dir.close();
     client << F("426 Transfer aborted") << eol;
     #ifdef FTP_DEBUG
       Serial << F(" Transfer aborted!") << eol;
     #endif
     transferStage = FTP_Close;
   }
+//  if( data.connected())
+  data.stop(); 
 }
 
 // Read a char from client connected to ftp server
@@ -937,6 +993,14 @@ boolean FtpServer::haveParameter()
   return false;  
 }
 
+inline boolean FtpServer::legalChar( char c )
+{
+  if( c == '"' || c == '*' || c == '?' || c == ':' || 
+      c == '<' || c == '>' || c == '|' )
+    return false;
+  return 0x1f < c && c < 0x7f;
+}
+
 // Make complete path/name from cwdName and parameter
 //
 // 3 possible cases: parameter can be absolute path, relative path or only the name
@@ -972,11 +1036,18 @@ boolean FtpServer::makePath( char * fullName, char * param )
   uint16_t strl = strlen( fullName ) - 1;
   if( fullName[ strl ] == '/' && strl > 1 )
     fullName[ strl ] = 0;
-  if( strlen( fullName ) < FTP_CWD_SIZE )
-    return true;
-
-  client << F("500 Command line too long") << eol;
-  return false;
+  if( strlen( fullName ) >= FTP_CWD_SIZE )
+  {
+    client << F("500 Command line too long") << eol;
+    return false;
+  }
+  for( uint8_t i = 0; i < strlen( fullName ); i ++ )
+    if( ! legalChar( fullName[i]))
+    {
+      client << F("553 File name not allowed") << eol;
+      return false;
+    }
+  return true;
 }
 
 boolean FtpServer::makeExistsPath( char * path, char * param )
@@ -1061,4 +1132,3 @@ char * FtpServer::makeDateTimeStr( char * tstr, uint16_t date, uint16_t time )
            ( time & 0xF800 ) >> 11, ( time & 0x07E0 ) >> 5, ( time & 0x001F ) << 1 );            
   return tstr;
 }
-
