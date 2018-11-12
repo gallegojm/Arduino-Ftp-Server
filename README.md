@@ -4,24 +4,29 @@ Arduino-Ftp-Server
 How to use FtpServer on Arduino
 ===============================
 
-Tested with Ide 1.8.5 on Mega2560 and Due with ethernet module W5100, W5200 or W5500
+Tested with Ide 1.8.7
+On Mega2560 and Due with ethernet module W5100, W5200 or W5500
+On Esp8266 (Adafruit Feather Huzzah) with external SD card or internal flash system
 
 1) Download and install last versions of
    - Ethernet (2.0.0)
-   - FatFs (1.0.7) 
+   - SdFat (1.0.7)
+   - FatFs
+   - FatLib (this include ExtFatFs and ExtSpiFfs)
 2) To test the access to the SD card is ok :
-   - load example libraries/SdFat/examples/SdInfo,
+   - verify the correct library is selected in FatLib.h
+   - load example libraries/FatLib/examples/FatLibDemo or SpiFfsFatLibDemo,
    - verify that SD_CHIP_SELECT has the correct value (Chip Select for SD card reader),
    - run
 3) Download and install
-   - FtpServer
+   - FtpServer (this include ExtStreaming, modified Streaming library)
 4) To test Ftp Server:
-   - restart ide
-   - load libraries/examples/FtpServerTest,
+   - load libraries/examples/FtpServerTest or Esp8266FtpServerTest,
    - verify that CS_SDCARD, P_RESET, mac[] and serverIp have the correct values,
+   - for Esp8266, set the correct value for ssid and password
    - run
    - annotate in the Ide serial monitor the IP your router assign to the Ftp Server
-   - open a session in a Ftp client (user "arduino", password "Due",
+   - open a session in a Ftp client (user "arduino", password "text",
        protocol set to normal FTP server (no encryption),
        select single data connection mode when available)
 
@@ -40,7 +45,10 @@ In FtpServer.h most definitions are commented
    - FTP_PASS  his password
    - FTP_BUF_SIZE is the size of the file buffer for read and write operations. The value 1024 gives the best speed results. But it can be reduced if memory usage is critical.
    - FTP_TIME_OUT and FTP_AUTH_TIME_OUT are expressed in seconds.
-       
+
+In FatLib.h
+   - #define FAT_USE allow to select a library to manage the file system.
+   
 Streaming & ExtStreaming       
 ========================
 
@@ -50,14 +58,25 @@ It is included in FtpServer library so you don't need to download it.
 
 I have to remove 'endl' definition as it colides with SdFat. I replace it with 'eol' and rename the library to ExtStreaming.
 
-SdFat & ExtSdFat
-================
+FatFs
+=====
 
-ExtSdFat and ExtDir are two classes than extend SdFat and SdFile from William Greiman library
+FatFs are classes to wrap in Arduino ide the module FatFs from ChaN
+(https://github.com/gallegojm/Arduino-FatFs)
+
+FatLib
+======
+
+FatLib allows you to easily switch between libraries SdFat, FatFs and SPIFFS
+(https://github.com/gallegojm/Arduino-FatLib)
+
+It includes ExtSdFat and ExtSpiFfs, wrappers for SdFat or FS
+
+SdFat
+=====
+
+Library from William Greiman library
 (https://github.com/greiman/SdFat)
-
-Last version of SdFat supports long file name, so it is no more necessary to use FatFs as in
-  previous version of FtpServer
 
 Ethernet
 ========

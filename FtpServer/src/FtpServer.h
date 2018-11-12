@@ -1,7 +1,7 @@
-
 /*
  * FTP Serveur for Arduino Due or Mega 2580 
  * and Ethernet shield W5100, W5200 or W5500
+ * or for Esp8266 with external SD card or SpiFfs
  * Copyright (c) 2014-2018 by Jean-Michel Gallego
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -28,17 +28,24 @@
 #define FTP_SERVER_H
 
 #include <SPI.h>
-#include <Ethernet.h>
+#ifdef ESP8266
+  #include <ESP8266WiFi.h>
+  #include <WiFiClient.h>
+#else
+  #include <Ethernet.h>
+#endif
 #include "ExtStreaming.h"
-#include "ExtSdFat.h"
+#include <FatLib.h>
 
 // Uncomment to print debugging info to console attached to Arduino
-//#define FTP_DEBUG
+#define FTP_DEBUG
+// Uncomment to print additional info
+//#define FTP_DEBUG1
 
-#define FTP_SERVER_VERSION "FTP-2018-09-19"
+#define FTP_SERVER_VERSION "ESP-2018-11-04"
 
 #define FTP_USER "arduino"        // User'name
-#define FTP_PASS "Due"            // His password
+#define FTP_PASS "test"           // His password
 
 #define FTP_CTRL_PORT 21          // Command port on wich server is listening
 #define FTP_DATA_PORT_DFLT 20     // Default data port in active mode
@@ -46,10 +53,24 @@
 
 #define FTP_TIME_OUT  5 * 60      // Disconnect client after 5 minutes of inactivity
 #define FTP_AUTH_TIME_OUT 10      // Wait for authentication for 10 seconds
-#define FTP_CMD_SIZE _MAX_LFN + 8 // max size of a command
-#define FTP_CWD_SIZE _MAX_LFN + 8 // max size of a directory name
-#define FTP_FIL_SIZE _MAX_LFN     // max size of a file name
+#define FTP_CMD_SIZE FF_MAX_LFN+8 // max size of a command
+#define FTP_CWD_SIZE FF_MAX_LFN+8 // max size of a directory name
+#define FTP_FIL_SIZE FF_MAX_LFN   // max size of a file name
 #define FTP_BUF_SIZE 1024 // 512  // size of file buffer for read/write
+
+#ifdef ESP8266
+  #define FTP_SERVER WiFiServer
+  #define FTP_CLIENT WiFiClient
+  #define FTP_LOCALIP() WiFi.localIP()
+  #define CommandIs( a ) (command != NULL && ! strcmp_P( command, PSTR( a )))
+  #define ParameterIs( a ) ( parameter != NULL && ! strcmp_P( parameter, PSTR( a )))
+#else
+  #define FTP_SERVER EthernetServer
+  #define FTP_CLIENT EthernetClient
+  #define FTP_LOCALIP() Ethernet.localIP()
+  #define CommandIs( a ) ( ! strcmp_PF( command, PSTR( a )))
+  #define ParameterIs( a ) ( ! strcmp_PF( parameter, PSTR( a )))
+#endif
 
 enum ftpCmd { FTP_Stop = 0,       // In this stage, stop any connection
               FTP_Init,           //  initialize some variables
@@ -65,6 +86,10 @@ enum ftpTransfer { FTP_Close = 0, // In this stage, close data channel
                    FTP_Nlst,      //  list of name of files
                    FTP_Mlsd };    //  listing for machine processing
 
+enum ftpDataConn { FTP_NoConn = 0,// No data connexion
+                   FTP_Pasive,    // Pasive type
+                   FTP_Active };  // Active type
+
 class FtpServer
 {
 public:
@@ -75,43 +100,44 @@ private:
   void    iniVariables();
   void    clientConnected();
   void    disconnectClient();
-  boolean processCommand();
-  boolean haveParameter();
-  int     dataConnect( boolean out150 = true );
-  boolean dataConnected();
-  boolean doRetrieve();
-  boolean doStore();
-  boolean doList();
-  boolean doMlsd();
+  bool    processCommand();
+  bool    haveParameter();
+  int     dataConnect( bool out150 = true );
+  bool    dataConnected();
+  bool    doRetrieve();
+  bool    doStore();
+  bool    doList();
+  bool    doMlsd();
   void    closeTransfer();
   void    abortTransfer();
-  boolean makePath( char * fullName, char * param = NULL );
-  boolean makeExistsPath( char * path, char * param = NULL );
-  boolean openDir( ExtDir * pdir, char * sdir = NULL );
+  bool    makePath( char * fullName, char * param = NULL );
+  bool    makeExistsPath( char * path, char * param = NULL );
+  bool    openDir( FAT_DIR * pdir, char * sdir = NULL );
   uint8_t getDateTime( char * dt, uint16_t * pyear, uint8_t * pmonth, uint8_t * pday,
                        uint8_t * phour, uint8_t * pminute, uint8_t * second );
   char *  makeDateTimeStr( char * tstr, uint16_t date, uint16_t time );
   int8_t  readChar();
-  boolean legalChar( char c );
   
   IPAddress      dataIp;              // IP address of client for data
-  EthernetClient client;
-  EthernetClient data;
+  FTP_CLIENT  client;
+  FTP_CLIENT  data;
   
-  SdFile   file;
-  ExtDir   dir;
+  FAT_FILE file;
+  FAT_DIR  dir;
   
   ftpCmd   cmdStage;                  // stage of ftp command connexion
   ftpTransfer transferStage;          // stage of data connexion
+  ftpDataConn dataConn;               // type of data connexion
   
-  boolean  dataPassiveConn;
-  uint16_t dataPort;
-  char     buf[ FTP_BUF_SIZE ];       // data buffer for transfers
+  uint8_t  __attribute__((packed, aligned(4))) // need to be aligned to 32bit for Esp8266 SPIClass::transferBytes()
+           buf[ FTP_BUF_SIZE ];       // data buffer for transfers
   char     cmdLine[ FTP_CMD_SIZE ];   // where to store incoming char from client
   char     cwdName[ FTP_CWD_SIZE ];   // name of current directory
+  char     rnfrName[ FTP_CWD_SIZE ];  // name of file for RNFR command
   char     command[ 5 ];              // command sent by client
-  boolean  rnfrCmd;                   // previous command was RNFR
+  bool     rnfrCmd;                   // previous command was RNFR
   char *   parameter;                 // point to begin of parameters sent by client
+  uint16_t dataPort;
   uint16_t iCL;                       // pointer to cmdLine next incoming char
   uint16_t nbMatch;
 

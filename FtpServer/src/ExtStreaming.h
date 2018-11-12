@@ -110,7 +110,6 @@ inline Print &operator <<(Print &obj, _EndLineCode arg)
 enum _EndLineCode { eol };
 
 inline Print &operator <<(Print &obj, _EndLineCode arg) 
-//{ obj.print(F("\n\r")); return obj; }
-{ obj.print(F("\r\n")); return obj; }
+{ obj.print( "\r\n" ); return obj; }
 
 #endif // EXT_STREAMING_H

@@ -1,8 +1,15 @@
 /*
  * This sketch demonstrate the use of FTP server library
  * Copyright (c) 2014-2018 by Jean-Michel Gallego
-
+ *
  * You may have to modify some of the definitions
+ *
+ * To select between SdFat or FatFs libraries,
+ *   select in file FatLib.h one of the lines
+ *      #define FAT_USE  FAT_SDFAT
+ *   or
+ *      #define FAT_USE  FAT_FATFS
+ * FatFs consume a little more memory but allow accentued characters in file names
  *
  * In ExtSdFat.h
  *   _MAX_LFN  is the longest size for a file name, including the complete path.
@@ -16,33 +23,30 @@
  *                The value 1024 gives the best speed results.
  *                But it can be reduced if memory usage is critical.
  *   FTP_TIME_OUT and FTP_AUTH_TIME_OUT are expressed in seconds.
- *
- * In library Ethernet, if you do not use W5100 chip, try to uncomment line 28
- *   //#define SPI_ETHERNET_SETTINGS SPISettings(30000000, MSBFIRST, SPI_MODE0)
- *   to increase upload/download speed
  */
 
 #include <FtpServer.h>
 #include <FreeStack.h>
 
 // Define Chip Select for your SD card according to hardware 
-#define CS_SDCARD 4  // SD card reader of Ehernet shield
-//#define CS_SDCARD 53 // Chip Select for Arduino Due
+// #define CS_SDCARD 4  // SD card reader of Ehernet shield
+#define CS_SDCARD 53 // Chip Select for SD card reader on Due
 
 // Define Reset pin for W5200 or W5500
 // set to -1 for other ethernet chip or if Arduino reset board is used
-// #define P_RESET -1
-#define P_RESET 8
+#define P_RESET -1
+//#define P_RESET 8
 
 FtpServer ftpSrv;
 
 // Mac address of ethernet adapter
 // byte mac[] = { 0x90, 0xa2, 0xda, 0x00, 0x00, 0x00 };
-byte mac[] = { 0x00, 0xaa, 0xbb, 0xcc, 0xde, 0xef };
+// byte mac[] = { 0x00, 0xaa, 0xbb, 0xcc, 0xde, 0xef };
+byte mac[] = { 0xde, 0xad, 0xbe, 0xef, 0xfe, 0xef };
 
 // IP address of FTP server
 // if set to 0, use DHCP for the routeur to assign IP
-// IPAddress serverIp( 192, 168, 1, 100 );
+// IPAddress serverIp( 192, 168, 1, 40 );
 IPAddress serverIp( 0, 0, 0, 0 );
 
 /*******************************************************************************
@@ -53,16 +57,21 @@ IPAddress serverIp( 0, 0, 0, 0 );
 
 void setup()
 {
-  Serial.begin( 9600 );
+  Serial.begin( 115200 );
   Serial << F( "=== Test of FTP Server ===" ) << eol;
 
   // If other chips are connected to SPI bus, set to high the pin connected to their CS
-  // pinMode( 10, OUTPUT ); 
-  // digitalWrite( 10, HIGH );
+  // pinMode( 4, OUTPUT ); 
+  // digitalWrite( 4, HIGH );
 
   // Initialize the SD card.
-  Serial << F("Mount the SD card with library SdFat ... ");
-  if( ! sd.begin( CS_SDCARD, SD_SCK_MHZ( 50 )))
+  Serial << F("Mount the SD card with library ");
+  #if FAT_USE == FAT_SDFAT
+    Serial << F("SdFat ... ");
+  #else
+    Serial << F("FatFs ... ");
+  #endif
+  if( ! FAT_FS.begin( CS_SDCARD, SD_SCK_MHZ( 50 )))
   {
     Serial << F("Unable to mount SD card") << eol;
     while( true ) ;
@@ -113,6 +122,5 @@ void loop()
 {
   ftpSrv.service();
  
-  // more process... 
+  // more processes... 
 }
-
