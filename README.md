@@ -1,8 +1,6 @@
-Arduino-Ftp-Server
-==================
+# Arduino-Ftp-Server
 
-How to use FtpServer on Arduino
-===============================
+## How to use FtpServer on Arduino
 
 Tested with Ide 1.8.7
 On Mega2560 and Due with ethernet module W5100, W5200 or W5500
@@ -10,16 +8,16 @@ On Esp8266 (Adafruit Feather Huzzah) with external SD card or internal flash sys
 
 1) Download and install last versions of
    - Ethernet (2.0.0)
-   - SdFat (1.0.7)
-   - FatFs
-   - FatLib (this include ExtFatFs and ExtSpiFfs)
+   - SdFat Library from William Greiman library (https://github.com/greiman/SdFat)
+   - FatFs (https://github.com/gallegojm/Arduino-FatFs)
+   - FatLib (https://github.com/gallegojm/Arduino-FatLib)
 2) To test the access to the SD card is ok :
    - verify the correct library is selected in FatLib.h
    - load example libraries/FatLib/examples/FatLibDemo or SpiFfsFatLibDemo,
    - verify that SD_CHIP_SELECT has the correct value (Chip Select for SD card reader),
    - run
 3) Download and install
-   - FtpServer (this include ExtStreaming, modified Streaming library)
+   - FtpServer (https://github.com/gallegojm/Arduino-Ftp-Server) (this include ExtStreaming, modified Streaming library)
 4) To test Ftp Server:
    - load libraries/examples/FtpServerTest or Esp8266FtpServerTest,
    - verify that CS_SDCARD, P_RESET, mac[] and serverIp have the correct values,
@@ -30,8 +28,7 @@ On Esp8266 (Adafruit Feather Huzzah) with external SD card or internal flash sys
        protocol set to normal FTP server (no encryption),
        select single data connection mode when available)
 
-Definitions
-===========
+## Definitions
 
 You may have to modify some of the definitions
 
@@ -49,86 +46,78 @@ In FtpServer.h most definitions are commented
 In FatLib.h
    - #define FAT_USE allow to select a library to manage the file system.
    
-Streaming & ExtStreaming       
-========================
+## About libraries used with FtpServer
+### Streaming & ExtStreaming       
 
 Streaming is a library from Mikal Hart (http://arduiniana.org/2009/04/new-streaming-library/)
 
-It is included in FtpServer library so you don't need to download it.
+ExtStreaming is included in FtpServer library so you don't need to download it.
 
 I have to remove 'endl' definition as it colides with SdFat. I replace it with 'eol' and rename the library to ExtStreaming.
 
-FatFs
-=====
+### FatFs
 
 FatFs are classes to wrap in Arduino ide the module FatFs from ChaN
-(https://github.com/gallegojm/Arduino-FatFs)
 
-FatLib
-======
+###FatLib
 
 FatLib allows you to easily switch between libraries SdFat, FatFs and SPIFFS
-(https://github.com/gallegojm/Arduino-FatLib)
 
 It includes ExtSdFat and ExtSpiFfs, wrappers for SdFat or FS
 
-SdFat
-=====
+### SdFat
 
 Library from William Greiman library
-(https://github.com/greiman/SdFat)
 
-Ethernet
-========
+### Ethernet
 
 With new version (2.0.0) of this Arduino library, it is no more necessary to add function
 connected() to EthernetServer class
 
-FTP clients
-===========
+## FTP clients
 
-I test FtpServer with those clients:
+I have tested FtpServer with those clients:
 
-Under Windows:
+### Under Windows 
   FTP Rush, Filezilla, WinSCP, NcFTP (and ncftpget, ncftpput), Firefox, command line ftp.exe
   
-Under Ubuntu:
+### Under Ubuntu 
   gFTP, Filezilla, NcFTP(and ncftpget, ncftpput), lftp, ftp, Firefox
   
-Under Android:
+### Under Android 
   AndFTP, FTP Express, Firefox
   
-With a second Arduino:
+### With a second Arduino 
   using the sketch of SurferTim at http://playground.arduino.cc/Code/FTP
 
-When available, you have to select single data connection mode.
+## When available in client, you have to select single data connection mode.
 
-FTP Rush:
+### FTP Rush 
 To force FTP Rush to use the primary connection for data transfers:
 Go to Tools/Site Manager, right-select you site and Site Properties
 In General, check "Single connection mode"
 
-WinSCP:
+### WinSCP 
 To force WinSCP to use the primary connection for data transfers:
 In Login, go to Tools/Preferences.../Transfer/Background,
   set "Maximum number of transfers at the same time" to 1.
 
-gFTP:
+### gFTP 
 To force gFTP to use the primary connection for data transfers:
 Go to FTP/Preferences...,
 In General, check "One transfer at a time"
   
-FileZilla:
+### FileZilla 
 To force FileZilla to use the primary connection for data transfers:
 Go to File/Site Manager then select your site.
 In Transfer Settings, check "Limit number of simultaneous connections" and set the maximum to 1
 
-Firefox:
+### Firefox 
 Enter address ftp://arduino:Due@192.168.1.xxx
 You can download any file from the server.
 You have to quit Firefox to close the connection with the server.
 
-NcFTP:
+### NcFTP 
 This client works on the command line and is perfect for batch processing.
 For example:
   ncftpget -d stdout -u arduino -p Due 192.168.1.xxx . /MyDir/MyFile
