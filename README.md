@@ -1,4 +1,4 @@
-# Arduino-Ftp-Server
+# ======== Arduino-Ftp-Server ========
 
 ## How to use FtpServer on Arduino
 
@@ -9,7 +9,7 @@ On **Mega2560** and **Due** with ethernet module W5100, W5200 or W5500
 On **Esp8266** (Adafruit Feather Huzzah) with external SD card or internal flash system
 
 1) Download and install last versions of
-   - **Ethernet** (2.0.0)
+   - **Ethernet** (2.0.0) in the Arduino Ide Manager
    - **SdFat** Library from William Greiman library (https://github.com/greiman/SdFat)
    - **FatFs** (https://github.com/gallegojm/Arduino-FatFs)
    - **FatLib** (https://github.com/gallegojm/Arduino-FatLib)
@@ -72,7 +72,7 @@ It includes ExtSdFat and ExtSpiFfs, wrappers for SdFat or FS
 
 Library from William Greiman library
 
-It is faster than FatFs and use less memory, but don't allow use of accentued characters in file names.
+It is faster than FatFs and use less memory, but don't allow the use of accentued characters in file names.
 
 ### Ethernet
 
@@ -139,6 +139,6 @@ This client works on the command line and is perfect for batch processing.
 
 For example:
 
-  ncftpget -d stdout -u arduino -p Due 192.168.1.xxx . /MyDir/MyFile
+  ncftpget -d stdout -u arduino -p test 192.168.1.xxx . /MyDir/MyFile
   
   to download a file to the current directory
