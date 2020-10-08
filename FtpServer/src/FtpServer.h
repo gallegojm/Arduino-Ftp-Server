@@ -42,7 +42,7 @@
 // Uncomment to print additional info
 //#define FTP_DEBUG1
 
-#define FTP_SERVER_VERSION "ESP-2018-11-04"
+#define FTP_SERVER_VERSION "2020-10-08"
 
 #define FTP_USER "arduino"        // User'name
 #define FTP_PASS "test"           // His password
