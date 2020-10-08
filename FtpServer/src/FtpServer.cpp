@@ -67,17 +67,28 @@
 FTP_SERVER ftpServer( FTP_CTRL_PORT );
 FTP_SERVER dataServer( FTP_DATA_PORT_PASV );
 
-void FtpServer::init()
+void FtpServer::init( IPAddress _localIP )
 {
   // Tells the ftp server to begin listening for incoming connection
   ftpServer.begin();
   #ifdef ESP8266
   ftpServer.setNoDelay( true );
   #endif
+  localIp = _localIP == FTP_NULLIP() ? FTP_LOCALIP() : _localIP ;
+  strcpy( user, FTP_USER ); 
+  strcpy( pass, FTP_PASS ); 
   dataServer.begin();
   millisDelay = 0;
   cmdStage = FTP_Stop;
   iniVariables();
+}
+
+void FtpServer::credentials( char * _user, char * _pass )
+{
+  if( strlen( _user ) > 0 && strlen( _user ) < FTP_CRED_SIZE )
+    strcpy( user, _user );
+  if( strlen( _pass ) > 0 && strlen( _pass ) < FTP_CRED_SIZE )
+    strcpy( pass, _pass );
 }
 
 void FtpServer::iniVariables()
@@ -95,7 +106,7 @@ void FtpServer::iniVariables()
   transferStage = FTP_Close;
 }
 
-void FtpServer::service()
+ftpCmd FtpServer::service()
 {
   #ifdef FTP_DEBUG1
     int8_t data0 = data.status();
@@ -104,7 +115,7 @@ void FtpServer::service()
   #endif
   
   if((int32_t) ( millisDelay - millis() ) > 0 )
-    return;
+    return cmdStage;
 
   if( cmdStage == FTP_Stop )
   {
@@ -189,17 +200,21 @@ void FtpServer::service()
              << F("  Transfer: ") << transferStage
              << F("  Data: ") << _HEX( dstat ) << eol;
   #endif
+  return cmdStage;
 }
 
 void FtpServer::clientConnected()
 {
   #ifdef FTP_DEBUG
-    Serial << F(" Client connected!") << eol;
+    Serial << F(" Client '") << user << F("' connected!") << eol;
   #endif
   client << F("220--- Welcome to FTP for Arduino ---") << eol;
   client << F("220---   By Jean-Michel Gallego   ---") << eol;
   client << F("220 --   Version ") << FTP_SERVER_VERSION << F("   --") << eol;
   iCL = 0;
+  sameSubnet = true;
+  for( uint8_t i = 0; i < 4; i ++ )
+    sameSubnet &= ! (( FTP_LOCALIP()[i] ^ client.remoteIP()[i] ) & Ethernet.subnetMask()[i] );
 }
 
 void FtpServer::disconnectClient()
@@ -225,7 +240,7 @@ bool FtpServer::processCommand()
   //
   if( CommandIs( "USER" ))
   {
-    if( ParameterIs( FTP_USER ))
+    if( ! strcmp( parameter, user ))
     {
       client << F("331 Ok. Password required") << eol;
       strcpy( cwdName, "/" );
@@ -247,7 +262,7 @@ bool FtpServer::processCommand()
       client << F("503 ") << eol;
       cmdStage = FTP_Stop;
     }
-    if( ParameterIs( FTP_PASS ))
+    if( ! strcmp( parameter, pass ))
     {
       #ifdef FTP_DEBUG
         Serial << F(" Authentication Ok. Waiting for commands.") << eol;
@@ -374,11 +389,17 @@ bool FtpServer::processCommand()
   {
     data.stop();
     dataServer.begin();
-    dataIp = FTP_LOCALIP();
+    if( sameSubnet )
+      dataIp = FTP_LOCALIP();
+    else
+      dataIp = localIp;
     dataPort = FTP_DATA_PORT_PASV;
     #ifdef FTP_DEBUG
       Serial << F(" Connection management set to passive") << eol;
-      Serial << F(" Data port set to ") << dataPort << eol;
+      Serial << F(" Listening at ")
+						 << dataIp[0] << F(".") << dataIp[1] << F(".") 
+						 << dataIp[2] << F(".") << dataIp[3]  
+             << F(":") << dataPort << eol;
     #endif
     client << F("227 Entering Passive Mode") << F(" (")
            << dataIp[0] << F(",") << dataIp[1] << F(",") 

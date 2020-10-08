@@ -55,8 +55,10 @@
 #define FTP_AUTH_TIME_OUT 10      // Wait for authentication for 10 seconds
 #define FTP_CMD_SIZE FF_MAX_LFN+8 // max size of a command
 #define FTP_CWD_SIZE FF_MAX_LFN+8 // max size of a directory name
-#define FTP_FIL_SIZE FF_MAX_LFN   // max size of a file name
+#define FTP_FIL_SIZE FF_MAX_LFN   // max size of a file name 
+#define FTP_CRED_SIZE 16          // max size of username and password
 #define FTP_BUF_SIZE 1024 // 512  // size of file buffer for read/write
+#define FTP_NULLIP() IPAddress(0,0,0,0)
 
 #ifdef ESP8266
   #define FTP_SERVER WiFiServer
@@ -72,7 +74,7 @@
   #define ParameterIs( a ) ( ! strcmp_PF( parameter, PSTR( a )))
 #endif
 
-enum ftpCmd { FTP_Stop = 0,       // In this stage, stop any connection
+enum ftpCmd { FTP_Stop = 0,       //  In this stage, stop any connection
               FTP_Init,           //  initialize some variables
               FTP_Client,         //  wait for client connection
               FTP_User,           //  wait for user name
@@ -93,8 +95,9 @@ enum ftpDataConn { FTP_NoConn = 0,// No data connexion
 class FtpServer
 {
 public:
-  void    init();
-  void    service();
+  void    init( IPAddress _localIP = FTP_NULLIP() );
+  void    credentials( char * _user, char * _pass );
+  ftpCmd  service();
 
 private:
   void    iniVariables();
@@ -118,7 +121,8 @@ private:
   char *  makeDateTimeStr( char * tstr, uint16_t date, uint16_t time );
   int8_t  readChar();
   
-  IPAddress      dataIp;              // IP address of client for data
+  IPAddress   localIp;                // IP address of server as seen by clients
+  IPAddress   dataIp;                 // IP address of client for data
   FTP_CLIENT  client;
   FTP_CLIENT  data;
   
@@ -134,8 +138,11 @@ private:
   char     cmdLine[ FTP_CMD_SIZE ];   // where to store incoming char from client
   char     cwdName[ FTP_CWD_SIZE ];   // name of current directory
   char     rnfrName[ FTP_CWD_SIZE ];  // name of file for RNFR command
+  char     user[ FTP_CRED_SIZE ];     // user name
+  char     pass[ FTP_CRED_SIZE ];     // password
   char     command[ 5 ];              // command sent by client
   bool     rnfrCmd;                   // previous command was RNFR
+  bool     sameSubnet;
   char *   parameter;                 // point to begin of parameters sent by client
   uint16_t dataPort;
   uint16_t iCL;                       // pointer to cmdLine next incoming char
