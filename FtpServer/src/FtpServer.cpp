@@ -2,7 +2,7 @@
  * FTP Serveur for Arduino Due or Mega 2580 
  * and Ethernet shield W5100, W5200 or W5500
  * or for Esp8266 with external SD card or SpiFfs
- * Copyright (c) 2014-2018 by Jean-Michel Gallego
+ * Copyright (c) 2014-2020 by Jean-Michel Gallego
  *
  * Please read file ReadMe.txt for instructions 
  * 
@@ -74,7 +74,7 @@ void FtpServer::init( IPAddress _localIP )
   #ifdef ESP8266
   ftpServer.setNoDelay( true );
   #endif
-  localIp = _localIP == FTP_NULLIP() ? FTP_LOCALIP() : _localIP ;
+  localIp = _localIP == FTP_NULLIP() || _localIP[0] == 0 ? FTP_LOCALIP() : _localIP ;
   strcpy( user, FTP_USER ); 
   strcpy( pass, FTP_PASS ); 
   dataServer.begin();
@@ -106,7 +106,7 @@ void FtpServer::iniVariables()
   transferStage = FTP_Close;
 }
 
-ftpCmd FtpServer::service()
+uint8_t FtpServer::service()
 {
   #ifdef FTP_DEBUG1
     int8_t data0 = data.status();
@@ -114,93 +114,93 @@ ftpCmd FtpServer::service()
     ftpCmd cmdStage0 = cmdStage;
   #endif
   
-  if((int32_t) ( millisDelay - millis() ) > 0 )
-    return cmdStage;
+  if((int32_t) ( millisDelay - millis() ) <= 0 )
+  {
+		if( cmdStage == FTP_Stop )
+		{
+		  if( client.connected())
+		    disconnectClient();
+		  cmdStage = FTP_Init;
+		}
+		else if( cmdStage == FTP_Init )       // Ftp server waiting for connection
+		{
+		  abortTransfer();
+		  iniVariables();
+		  #ifdef FTP_DEBUG
+		    Serial << F(" Ftp server waiting for connection on port ") << FTP_CTRL_PORT << eol;
+		  #endif
+		  cmdStage = FTP_Client;
+		}
+		else if( cmdStage == FTP_Client )     // Ftp server idle
+		{
+		  #ifdef ESP8266
+		  if( ftpServer.hasClient())
+		  {
+		    client.stop();
+		    client = ftpServer.available();
+		  }
+		  #else
+		  client = ftpServer.accept();
+		  #endif
+		  if( client.connected())             // A client connected
+		  {
+		    clientConnected();
+		    millisEndConnection = millis() + 1000L * FTP_AUTH_TIME_OUT; // wait client id for 10 s.
+		    cmdStage = FTP_User;
+		  }
+		}
+		else if( readChar() > 0 )             // got response
+		{
+		  processCommand();
+		  if( cmdStage == FTP_Stop )
+		    millisEndConnection = millis() + 1000L * FTP_AUTH_TIME_OUT;  // wait authentication for 10 s.
+		  else if( cmdStage < FTP_Cmd )
+		    millisDelay = millis() + 200;     // delay of 100 ms
+		  else
+		    millisEndConnection = millis() + 1000L * FTP_TIME_OUT;
+		}
+		else if( ! client.connected() )
+		  cmdStage = FTP_Init;
 
-  if( cmdStage == FTP_Stop )
-  {
-    if( client.connected())
-      disconnectClient();
-    cmdStage = FTP_Init;
-  }
-  else if( cmdStage == FTP_Init )       // Ftp server waiting for connection
-  {
-    abortTransfer();
-    iniVariables();
-    #ifdef FTP_DEBUG
-      Serial << F(" Ftp server waiting for connection on port ") << FTP_CTRL_PORT << eol;
-    #endif
-    cmdStage = FTP_Client;
-  }
-  else if( cmdStage == FTP_Client )     // Ftp server idle
-  {
-    #ifdef ESP8266
-    if( ftpServer.hasClient())
-    {
-      client.stop();
-      client = ftpServer.available();
-    }
-    #else
-    client = ftpServer.accept();
-    #endif
-    if( client.connected())             // A client connected
-    {
-      clientConnected();
-      millisEndConnection = millis() + 1000L * FTP_AUTH_TIME_OUT; // wait client id for 10 s.
-      cmdStage = FTP_User;
-    }
-  }
-  else if( readChar() > 0 )             // got response
-  {
-    processCommand();
-    if( cmdStage == FTP_Stop )
-      millisEndConnection = millis() + 1000L * FTP_AUTH_TIME_OUT;  // wait authentication for 10 s.
-    else if( cmdStage < FTP_Cmd )
-      millisDelay = millis() + 200;     // delay of 100 ms
-    else
-      millisEndConnection = millis() + 1000L * FTP_TIME_OUT;
-  }
-  else if( ! client.connected() )
-    cmdStage = FTP_Init;
+		if( transferStage == FTP_Retrieve )   // Retrieve data
+		{
+		  if( ! doRetrieve())
+		    transferStage = FTP_Close;
+		}
+		else if( transferStage == FTP_Store ) // Store data
+		{
+		  if( ! doStore())
+		    transferStage = FTP_Close;
+		}
+		else if( transferStage == FTP_List ||
+		         transferStage == FTP_Nlst)   // LIST or NLST
+		{
+		  if( ! doList())
+		    transferStage = FTP_Close;
+		}
+		else if( transferStage == FTP_Mlsd )  // MLSD listing
+		{
+		  if( ! doMlsd())
+		    transferStage = FTP_Close;
+		}
+		else if( cmdStage > FTP_Client &&
+		         ! ((int32_t) ( millisEndConnection - millis() ) > 0 ))
+		{
+		  client << F("530 Timeout") << eol;
+		  millisDelay = millis() + 200;       // delay of 200 ms
+		  cmdStage = FTP_Stop;
+		}
 
-  if( transferStage == FTP_Retrieve )   // Retrieve data
-  {
-    if( ! doRetrieve())
-      transferStage = FTP_Close;
+		#ifdef FTP_DEBUG1
+		  uint8_t dstat = data.status();
+		  if( cmdStage != cmdStage0 || transferStage != transferStage0 ||
+		      dstat != data0 )
+		    Serial << F("  Command: ") << cmdStage
+		           << F("  Transfer: ") << transferStage
+		           << F("  Data: ") << _HEX( dstat ) << eol;
+		#endif
   }
-  else if( transferStage == FTP_Store ) // Store data
-  {
-    if( ! doStore())
-      transferStage = FTP_Close;
-  }
-  else if( transferStage == FTP_List ||
-           transferStage == FTP_Nlst)   // LIST or NLST
-  {
-    if( ! doList())
-      transferStage = FTP_Close;
-  }
-  else if( transferStage == FTP_Mlsd )  // MLSD listing
-  {
-    if( ! doMlsd())
-      transferStage = FTP_Close;
-  }
-  else if( cmdStage > FTP_Client &&
-           ! ((int32_t) ( millisEndConnection - millis() ) > 0 ))
-  {
-    client << F("530 Timeout") << eol;
-    millisDelay = millis() + 200;       // delay of 200 ms
-    cmdStage = FTP_Stop;
-  }
-
-  #ifdef FTP_DEBUG1
-    uint8_t dstat = data.status();
-    if( cmdStage != cmdStage0 || transferStage != transferStage0 ||
-        dstat != data0 )
-      Serial << F("  Command: ") << cmdStage
-             << F("  Transfer: ") << transferStage
-             << F("  Data: ") << _HEX( dstat ) << eol;
-  #endif
-  return cmdStage;
+  return cmdStage | ( transferStage << 3 ) | ( dataConn << 6 );
 }
 
 void FtpServer::clientConnected()

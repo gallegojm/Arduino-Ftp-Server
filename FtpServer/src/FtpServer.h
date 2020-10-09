@@ -2,7 +2,7 @@
  * FTP Serveur for Arduino Due or Mega 2580 
  * and Ethernet shield W5100, W5200 or W5500
  * or for Esp8266 with external SD card or SpiFfs
- * Copyright (c) 2014-2018 by Jean-Michel Gallego
+ * Copyright (c) 2014-2020 by Jean-Michel Gallego
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -97,7 +97,7 @@ class FtpServer
 public:
   void    init( IPAddress _localIP = FTP_NULLIP() );
   void    credentials( char * _user, char * _pass );
-  ftpCmd  service();
+  uint8_t service();
 
 private:
   void    iniVariables();

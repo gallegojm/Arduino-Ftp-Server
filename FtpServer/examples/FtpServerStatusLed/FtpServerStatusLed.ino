@@ -1,5 +1,5 @@
 /*
- * This sketch demonstrate the use of FTP server library
+ * This sketch demonstrate how to retieve FTP server state
  * Copyright (c) 2014-2020 by Jean-Michel Gallego
  *
  * You may have to modify some of the definitions
@@ -24,7 +24,6 @@
  */
 
 #include <FtpServer.h>
-#include <FreeStack.h>
 
 // Define Chip Select for your SD card according to hardware 
 // #define CS_SDCARD 4  // SD card reader of Ehernet shield
@@ -34,6 +33,10 @@
 // set to -1 for other ethernet chip or if Arduino reset board is used
 #define P_RESET -1
 //#define P_RESET 8
+
+// Define pin for led
+#define LED_PIN LED_BUILTIN
+//#define LED_PIN 5
 
 FtpServer ftpSrv;
 
@@ -51,8 +54,8 @@ IPAddress serverIp( 0, 0, 0, 0 );
 // In passive mode, when accessing the serveur from outside his subnet, it can
 //  be necessary with some clients to reply them with the server's external
 //  ip address
-IPAddress externalIp( 192, 168, 1, 2 );
-// IPAddress externalIp( 0, 0, 0, 0 );
+// IPAddress externalIp( 192, 168, 1, 2 );
+IPAddress externalIp( 0, 0, 0, 0 );
 
 /*******************************************************************************
 **                                                                            **
@@ -63,7 +66,12 @@ IPAddress externalIp( 192, 168, 1, 2 );
 void setup()
 {
   Serial.begin( 115200 );
-  Serial << F( "=== Test of FTP Server ===" ) << eol;
+  Serial << F( "=== FTP Server state Led ===" ) << eol;
+
+  // initialize digital pin LED_PIN as an output.
+  pinMode( LED_PIN, OUTPUT );
+  // turn the LED off
+  digitalWrite( LED_PIN, LOW );
 
   // If other chips are connected to SPI bus, set to high the pin connected to their CS
   // pinMode( 4, OUTPUT ); 
@@ -104,20 +112,10 @@ void setup()
     Serial << F("failed!") << eol;
     while( true ) ;
   }
-  uint16_t wizModule[] = { 0, 5100, 5200, 5500 };
-  Serial << F("W") << wizModule[ Ethernet.hardwareStatus()] << F(" ok") << eol;
-  Serial << F("IP address of server: ") << Ethernet.localIP() << eol;
+  Serial << F("ok") << eol;
 
   // Initialize the FTP server
-  if( externalIp[0] != 0 )
-    ftpSrv.init( externalIp );
-  else
-    ftpSrv.init();
-  // Default username and password are set to 'arduino' and 'test' are defined in
-  //  but can then be changed by calling ftpSrv.credentials()
-  ftpSrv.credentials( "myname", "123" );
-
-  Serial << F("Free stack: ") << FreeStack() << eol;
+  ftpSrv.init();
 }
 
 /*******************************************************************************
@@ -128,7 +126,11 @@ void setup()
 
 void loop()
 {
-  ftpSrv.service();
+  uint8_t status = ftpSrv.service();
+  if(( status & 0x07 ) <= 2 )       // server waiting a client connection
+    digitalWrite( LED_PIN, LOW );
+  else                    // client 
+    digitalWrite( LED_PIN, HIGH );
  
   // more processes... 
 }
