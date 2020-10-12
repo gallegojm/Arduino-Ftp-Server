@@ -2,7 +2,7 @@
 How to use FtpServer on Arduino
 ===============================
 
-Tested with Ide 1.8.5 on Mega2560 and Due with ethernet module W5100, W5200 or W5500
+Tested with Ide 1.8.5 Due, Arduino Zero and Esp8266 with ethernet module W5100, W5200 or W5500
 
 1) Download and install last versions of
    - Ethernet (2.0.0)
