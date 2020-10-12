@@ -39,13 +39,18 @@
 
 // Uncomment to print debugging info to console attached to Arduino
 #define FTP_DEBUG
+
 // Uncomment to print additional info
 //#define FTP_DEBUG1
 
-#define FTP_SERVER_VERSION "2020-10-08"
+// Redirect to console
+#define SerialFtp Serial
+// #define SerialFtp SerialUSB
 
-#define FTP_USER "arduino"        // User'name
-#define FTP_PASS "test"           // His password
+#define FTP_SERVER_VERSION "2020-10-12"
+
+#define FTP_USER "arduino"        // Default user'name
+#define FTP_PASS "test"           // Default password
 
 #define FTP_CTRL_PORT 21          // Command port on wich server is listening
 #define FTP_DATA_PORT_DFLT 20     // Default data port in active mode
@@ -96,7 +101,7 @@ class FtpServer
 {
 public:
   void    init( IPAddress _localIP = FTP_NULLIP() );
-  void    credentials( char * _user, char * _pass );
+  void    credentials( const char * _user, const char * _pass );
   uint8_t service();
 
 private:

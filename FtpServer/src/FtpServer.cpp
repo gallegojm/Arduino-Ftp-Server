@@ -74,7 +74,7 @@ void FtpServer::init( IPAddress _localIP )
   #ifdef ESP8266
   ftpServer.setNoDelay( true );
   #endif
-  localIp = _localIP == FTP_NULLIP() || _localIP[0] == 0 ? FTP_LOCALIP() : _localIP ;
+  localIp = _localIP == FTP_NULLIP() || (uint32_t) _localIP == 0 ? FTP_LOCALIP() : _localIP ;
   strcpy( user, FTP_USER ); 
   strcpy( pass, FTP_PASS ); 
   dataServer.begin();
@@ -83,7 +83,7 @@ void FtpServer::init( IPAddress _localIP )
   iniVariables();
 }
 
-void FtpServer::credentials( char * _user, char * _pass )
+void FtpServer::credentials( const char * _user, const char * _pass )
 {
   if( strlen( _user ) > 0 && strlen( _user ) < FTP_CRED_SIZE )
     strcpy( user, _user );
@@ -127,7 +127,7 @@ uint8_t FtpServer::service()
 		  abortTransfer();
 		  iniVariables();
 		  #ifdef FTP_DEBUG
-		    Serial << F(" Ftp server waiting for connection on port ") << FTP_CTRL_PORT << eol;
+		    SerialFtp << F(" Ftp server waiting for connection on port ") << FTP_CTRL_PORT << eol;
 		  #endif
 		  cmdStage = FTP_Client;
 		}
@@ -140,6 +140,8 @@ uint8_t FtpServer::service()
 		    client = ftpServer.available();
 		  }
 		  #else
+      if( client && ! client.connected())
+        client.stop();
 		  client = ftpServer.accept();
 		  #endif
 		  if( client.connected())             // A client connected
@@ -195,9 +197,9 @@ uint8_t FtpServer::service()
 		  uint8_t dstat = data.status();
 		  if( cmdStage != cmdStage0 || transferStage != transferStage0 ||
 		      dstat != data0 )
-		    Serial << F("  Command: ") << cmdStage
-		           << F("  Transfer: ") << transferStage
-		           << F("  Data: ") << _HEX( dstat ) << eol;
+		    SerialFtp << F("  Command: ") << cmdStage
+		              << F("  Transfer: ") << transferStage
+		              << F("  Data: ") << _HEX( dstat ) << eol;
 		#endif
   }
   return cmdStage | ( transferStage << 3 ) | ( dataConn << 6 );
@@ -206,7 +208,7 @@ uint8_t FtpServer::service()
 void FtpServer::clientConnected()
 {
   #ifdef FTP_DEBUG
-    Serial << F(" Client '") << user << F("' connected!") << eol;
+    SerialFtp << F(" Client connected!") << eol;
   #endif
   client << F("220--- Welcome to FTP for Arduino ---") << eol;
   client << F("220---   By Jean-Michel Gallego   ---") << eol;
@@ -220,11 +222,14 @@ void FtpServer::clientConnected()
 void FtpServer::disconnectClient()
 {
   #ifdef FTP_DEBUG
-    Serial << F(" Disconnecting client") << eol;
+    SerialFtp << F(" Disconnecting client") << eol;
   #endif
   abortTransfer();
   client << F("221 Goodbye") << eol;
-  client.stop();
+  if( client )
+    client.stop();
+  if( data )
+    data.stop();
 }
 
 bool FtpServer::processCommand()
@@ -265,7 +270,7 @@ bool FtpServer::processCommand()
     if( ! strcmp( parameter, pass ))
     {
       #ifdef FTP_DEBUG
-        Serial << F(" Authentication Ok. Waiting for commands.") << eol;
+        SerialFtp << F(" Authentication Ok. Waiting for commands.") << eol;
       #endif
       client << F("230 Ok") << eol;
       cmdStage = FTP_Cmd;
@@ -395,11 +400,11 @@ bool FtpServer::processCommand()
       dataIp = localIp;
     dataPort = FTP_DATA_PORT_PASV;
     #ifdef FTP_DEBUG
-      Serial << F(" Connection management set to passive") << eol;
-      Serial << F(" Listening at ")
-						 << dataIp[0] << F(".") << dataIp[1] << F(".") 
-						 << dataIp[2] << F(".") << dataIp[3]  
-             << F(":") << dataPort << eol;
+      SerialFtp << F(" Connection management set to passive") << eol;
+      SerialFtp << F(" Listening at ")
+					      << dataIp[0] << F(".") << dataIp[1] << F(".") 
+					      << dataIp[2] << F(".") << dataIp[3]  
+                << F(":") << dataPort << eol;
     #endif
     client << F("227 Entering Passive Mode") << F(" (")
            << dataIp[0] << F(",") << dataIp[1] << F(",") 
@@ -430,9 +435,9 @@ bool FtpServer::processCommand()
     else
     {
       #ifdef FTP_DEBUG
-        Serial << F(" Data IP set to ") << dataIp[0] << F(":") << dataIp[1]
-               << F(":") << dataIp[2] << F(":") << dataIp[3] << eol;
-        Serial << F(" Data port set to ") << dataPort << eol;
+        SerialFtp << F(" Data IP set to ") << dataIp[0] << F(".") << dataIp[1]
+                  << F(".") << dataIp[2] << F(".") << dataIp[3] << eol;
+        SerialFtp << F(" Data port set to ") << dataPort << eol;
       #endif
       client << F("200 PORT command successful") << eol;
       dataConn = FTP_Active;
@@ -530,7 +535,6 @@ bool FtpServer::processCommand()
                << F(";Modify=") << makeDateTimeStr( dtStr, dat, tim );
         if( ! isdir )
         {
-          //FAT_FILE file;
           if( file.open( path, O_READ ))
           {
             client << F(";Size=") << file.fileSize();
@@ -558,7 +562,7 @@ bool FtpServer::processCommand()
       else if( dataConnect( false ))
       {
         #ifdef FTP_DEBUG
-          Serial << F(" Sending ") << parameter << eol;
+          SerialFtp << F(" Sending ") << parameter << eol;
         #endif
         client << F("150-Connected to port ") << dataPort << eol;
         client << F("150 ") << file.fileSize() << F(" bytes to download") << eol;
@@ -588,7 +592,7 @@ bool FtpServer::processCommand()
       else
       {
         #ifdef FTP_DEBUG
-          Serial << F(" Receiving ") << parameter << eol;
+          SerialFtp << F(" Receiving ") << parameter << eol;
         #endif
         millisBeginTrans = millis();
         bytesTransfered = 0;
@@ -609,7 +613,7 @@ bool FtpServer::processCommand()
       else
       {
         #ifdef FTP_DEBUG
-          Serial << F(" Creating directory ") << parameter << eol;
+          SerialFtp << F(" Creating directory ") << parameter << eol;
         #endif
         if( FAT_FS.mkdir( path ))
           client << F("257 \"") << parameter << F("\"") << F(" created") << eol;
@@ -628,7 +632,7 @@ bool FtpServer::processCommand()
       if( FAT_FS.rmdir( path ))
       {
         #ifdef FTP_DEBUG
-          Serial << F(" Deleting ") << path << eol;
+          SerialFtp << F(" Deleting ") << path << eol;
         #endif
         client << F("250 \"") << parameter << F("\" deleted") << eol;
       }
@@ -644,7 +648,7 @@ bool FtpServer::processCommand()
     if( haveParameter() && makeExistsPath( rnfrName ))
     {
       #ifdef FTP_DEBUG
-        Serial << F(" Ready for renaming ") << rnfrName << eol;
+        SerialFtp << F(" Ready for renaming ") << rnfrName << eol;
       #endif
       client << F("350 RNFR accepted - file exists, ready for destination") << eol;
       rnfrCmd = true;
@@ -679,7 +683,7 @@ bool FtpServer::processCommand()
           else
           {
             #ifdef FTP_DEBUG
-              Serial << F(" Renaming ") << rnfrName << F(" to ") << path << eol;
+              SerialFtp << F(" Renaming ") << rnfrName << F(" to ") << path << eol;
             #endif
             if( FAT_FS.rename( rnfrName, path ))
               client << F("250 File successfully renamed or moved") << eol;
@@ -872,7 +876,7 @@ bool FtpServer::doStore()
   int16_t rc = 0;
   if( nb > 0 )
   {
-    // Serial << millis() << " " << nb << eol;
+    // SerialFtp << millis() << " " << nb << eol;
     rc = file.write( buf, nb );
     bytesTransfered += nb;
   }
@@ -938,8 +942,8 @@ void FtpServer::closeTransfer()
   if( deltaT > 0 && bytesTransfered > 0 )
   {
     #ifdef FTP_DEBUG
-      Serial << F(" Transfer completed in ") << deltaT << F(" ms, ")
-             << bytesTransfered / deltaT << F(" kbytes/s") << eol;
+      SerialFtp << F(" Transfer completed in ") << deltaT << F(" ms, ")
+                << bytesTransfered / deltaT << F(" kbytes/s") << eol;
     #endif
     client << F("226-File successfully transferred") << eol;
     client << F("226 ") << deltaT << F(" ms, ")
@@ -960,7 +964,7 @@ void FtpServer::abortTransfer()
     dir.closeDir();
     client << F("426 Transfer aborted") << eol;
     #ifdef FTP_DEBUG
-      Serial << F(" Transfer aborted!") << eol;
+      SerialFtp << F(" Transfer aborted!") << eol;
     #endif
     transferStage = FTP_Close;
   }
@@ -986,7 +990,7 @@ int8_t FtpServer::readChar()
   {
     char c = client.read();
     #ifdef FTP_DEBUG
-      Serial << c;
+      SerialFtp << c;
     #endif
     if( c == '\\' )
       c = '/';
@@ -1160,9 +1164,9 @@ uint8_t FtpServer::getDateTime( char * dt, uint16_t * pyear, uint8_t * pmonth, u
   * pyear = atoi( dt );
   strncpy( dt, parameter, 14 );
   #ifdef FTP_DEBUG
-    Serial << F(" Modification time: ") << * pyear << F("/") << * pmonth << F("/") << * pday
-           << F(" ") << * phour << F(":") << * pminute << F(":") << * psecond
-           << F(" of file: ") << (char *) ( parameter + i ) << eol;
+    SerialFtp << F(" Modification time: ") << * pyear << F("/") << * pmonth << F("/") << * pday
+              << F(" ") << * phour << F(":") << * pminute << F(":") << * psecond
+              << F(" of file: ") << (char *) ( parameter + i ) << eol;
   #endif
   return i;
 }

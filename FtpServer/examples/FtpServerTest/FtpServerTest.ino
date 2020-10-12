@@ -42,7 +42,7 @@ FtpServer ftpSrv;
 // byte mac[] = { 0x00, 0xaa, 0xbb, 0xcc, 0xde, 0xef };
 byte mac[] = { 0xde, 0xad, 0xbe, 0xef, 0xfe, 0xef };
 
-// IP address of FTP server
+// IP address of ethernet adapter
 // if set to 0, use DHCP for the routeur to assign IP
 // IPAddress serverIp( 192, 168, 1, 40 );
 IPAddress serverIp( 0, 0, 0, 0 );
@@ -97,7 +97,7 @@ void setup()
 
   // Initialize the network
   Serial << F("Initialize ethernet module ... ");
-  if( serverIp[0] != 0 )
+  if((uint32_t) serverIp != 0 )
     Ethernet.begin( mac, serverIp );
   else if( Ethernet.begin( mac ) == 0 )
   {
@@ -109,7 +109,7 @@ void setup()
   Serial << F("IP address of server: ") << Ethernet.localIP() << eol;
 
   // Initialize the FTP server
-  if( externalIp[0] != 0 )
+  if((uint32_t) externalIp != 0 )
     ftpSrv.init( externalIp );
   else
     ftpSrv.init();
