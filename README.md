@@ -56,12 +56,12 @@ This is version 2. It has many changes:
 # ========
 
 You may have to modify some of the definitions in FtpServerConfig.h:
- - FTP_FILESYST allows to define the files system used
- - FTP_DEBUG    if defined, print to the Ide serial monitor information for debugging.
- - FTP_DEBUG1   if defined, print additional info
- - FTP_SERIAL   lets redirect debug info to an other port than Serial
- - FTP_TIME_OUT and FTP_AUTH_TIME_OUT are expressed in seconds.
- - FTP_BUF_SIZE is the size of the file buffer for read and write operations.
+ - **FTP_FILESYST** allows to define the files system used
+ - **FTP_DEBUG**    if defined, print to the Ide serial monitor information for debugging.
+ - **FTP_DEBUG1**   if defined, print additional info
+ - **FTP_SERIAL**   lets redirect debug info to an other port than Serial
+ - **FTP_TIME_OUT** and **FTP_AUTH_TIME_OUT** are expressed in seconds.
+ - **FTP_BUF_SIZE** is the size of the file buffer for read and write operations.
                This size affects the transmission speed. Values of 2048 or 1024 give
                best speed results, but it can be reduced if memory usage is critical.
 
@@ -82,21 +82,22 @@ You may have to modify some of the definitions in FtpServerConfig.h:
   **ftpSrv.init( IPAddress( 11, 22, 33, 44 ));**
   
 ## Setting of user's credentials
-  Default is 'arduino' for the user name and 'test' for the password.
-  This can be changed with:
-  ftpSrv.credentials( "myname", "123" );
-  Maximum length for name and password is 16
+ - Default is 'arduino' for the user name and 'test' for the password.
+  
+ - This can be changed with:
+  **ftpSrv.credentials( "myname", "123" );**
+ - Maximum length for name and password is 16
   
 ## Calling the Ftp Server routine in the loop():
-  ftpSrv.service();
-  If needed, this function returns the status of the Ftp Server as an 8 bit integer:
-    bits 0-2 represents the stage of the ftp command connexion
-             see the definition of enum ftpCmd in FtpServer.h
-    bits 3-5 represents the stage of the ftp transfer
-             see the definition of enum ftpTransfer
-    bits 6 & 7 represents the stage of the data connexion
-             see the definition of enum ftpDataConn
-  As an example, uncomment the line #define FTP_DEBUG1 in FtpServerConfig.h
+  **ftpSrv.service();**
+ - If needed, this function returns the status of the Ftp Server as an 8 bit integer:
+  + bits 0-2 represents the stage of the ftp command connexion
+             see the definition of **enum ftpCmd** in FtpServer.h
+  + bits 3-5 represents the stage of the ftp transfer
+             see the definition of **enum ftpTransfer**
+  + bits 6 & 7 represents the stage of the data connexion
+             see the definition of **enum ftpDataConn**
+ - As an example, uncomment the line **#define FTP_DEBUG1** in the file FtpServerConfig.h
              and run the sketch FtpServerStatusLed
        
 # ===========
