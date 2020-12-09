@@ -1,144 +1,150 @@
-# ======== Arduino-Ftp-Server ========
+===============================
+How to use FtpServer on Arduino
+===============================
 
-## How to use FtpServer on Arduino
+Tested with Ide 1.8.13 on Arduino Due and MKR with ethernet module W5100, W5200 or W5500
 
-Tested with Ide 1.8.7
+This is version 2. It has many changes:
+   - It must be easier to configure,
+   - FatLib and Streaming libraries are not more used 
 
-On **Mega2560** and **Due** with ethernet module W5100, W5200 or W5500
+   - Download and install FtpServer library
+   - Edit file FtpServer/src/FtpServerConfig.h and
+   - Modify #define FTP_FILESYST according to the files system library you are using
+   - The possible choices are:
 
-On **Esp8266** (Adafruit Feather Huzzah) with external SD card or internal flash system
-
-1) Download and install last versions of
-   - **Ethernet** (2.0.0) in the Arduino Ide Manager
-   - **SdFat** Library from William Greiman library (https://github.com/greiman/SdFat)
-   - **FatFs** (https://github.com/gallegojm/Arduino-FatFs)
-   - **FatLib** (https://github.com/gallegojm/Arduino-FatLib)
-2) To test the access to the SD card is ok :
-   - verify the correct library is selected in **FatLib.h**
-   - load example libraries/FatLib/examples/**FatLibDemo** or **SpiFfsFatLibDemo**,
-   - verify that **SD_CHIP_SELECT** has the correct value (Chip Select for SD card reader),
-   - run
-3) Download and install
-   - **FtpServer** (https://github.com/gallegojm/Arduino-Ftp-Server) (this include ExtStreaming, modified Streaming library)
-4) To test Ftp Server:
-   - load libraries/examples/**FtpServerTest** or **Esp8266FtpServerTest**,
-   - verify that **CS_SDCARD**, **P_RESET**, **mac[]** and **serverIp** have the correct values,
-   - for Esp8266, set the correct value for **ssid** and **password**
-   - run
-   - annotate in the Ide serial monitor the IP your router assign to the Ftp Server
-   - open a session in a Ftp client (user "arduino", password "text"), 
+1) Library SdFat version 1.4 from William Greiman
+   - Link: https://github.com/greiman/SdFat/archive/1.1.4.zip
+   - In file FtpServerConfig.h set FTP_FILESYST to FTP_SDFAT1
+   - Make sure that a version 1.4.x of the SdFat library is installed
+   - In the Ide, open example FtpServerSdFat1
+   - Study the example and modify it according to your hardware
+   - Upload it and watch the initialisation steps in the serial monitor 
+   - Open a session in a Ftp client (user "arduino", password "test",
        protocol set to normal FTP server (no encryption),
-       select single data connection mode when available)
+       select single data connection mode when available
 
-## Definitions
+2) New library SdFat version 2.0.2 from William Greiman
+   - Link: https://github.com/greiman/SdFat
+   - In file FtpServerConfig.h set FTP_FILESYST to FTP_SDFAT2
+   - Make sure that a version 2.0.2 of the SdFat library is installed
+   - This library allows to use the exFat filesystem, in addition to Fat16/32
+   - Check the SdFat/src/SdFatConfig.h file and verify that SDFAT_FILE_TYPE has
+       the correct value according to the format of your memory card
+   - In the Ide, open example FtpServerSdFat2
+   - Continue as for SdFat 1.4
 
-You may have to modify some of the definitions
+3) Library FatFs from ChaN adapted by me to run on Arduino
+   - Link: https://github.com/gallegojm/Arduino-FatFs
+   - For low level access to memory card, need SdFat version 1.4
+   - In file FtpServerConfig.h set FTP_FILESYST to FTP_FATFS
+   - In the Ide, open example FtpServerFatFs
+   - Continue as for SdFat 1.4
 
-In ExtSdFat.h
-   - **FF_MAX_LFN**  is the longest size for a file name, including the complete path. It is set to 255 but can be reduced if memory usage is critical.
+4) Libraries Adafruit_SPIFlash and SdFat-Adafruit-Fork to access SPI memories
+   - Needs: https://github.com/adafruit/Adafruit_SPIFlash
+   - Needs: https://github.com/adafruit/SdFat
+   - In file FtpServerConfig.h set FTP_FILESYST to FTP_SPIFM
+   - Check files Adafruit_SPIFlash/src/flash_devices.h and
+       Adafruit_SPIFlash/src/Adafruit_SPIFlashBase.cpp to select your
+       memory chip
+   - In the Ide, open example FtpServerSpiFlash
+   - Continue as for SdFat 1.4
+
+===========
+Definitions
+===========
+
+You may have to modify some of the definitions in FtpServerConfig.h:
+  FTP_FILESYST allows to define the files system used
+  FTP_DEBUG    if defined, print to the Ide serial monitor information for debugging.
+  FTP_DEBUG1   if defined, print additional info
+  FTP_SERIAL   lets redirect debug info to an other port than Serial
+  FTP_TIME_OUT and FTP_AUTH_TIME_OUT are expressed in seconds.
+  FTP_BUF_SIZE is the size of the file buffer for read and write operations.
+               This size affects the transmission speed. Values of 2048 or 1024 give
+               best speed results, but it can be reduced if memory usage is critical.
+
+=========
+Functions
+=========
+
+Declaration of the Ftp Server:
+  FtpServer ftpSrv;  Default command port to 21 and data port in passive mode to 55600
+  FtpServer ftpSrv( 421 ); Select command port
+  FtpServer ftpSrv( 221, 25000 ); Select command and data ports
+
+Initialization of the FTP server:
+  ftpSrv.init(); 
+In passive mode, when accessing the server from outside his subnet, it can be
+  necessary with some clients to reply them with the server's external ip address
+  ftpSrv.init( IPAddress( 11, 22, 33, 44 );
   
-In FtpServer.h most definitions are commented
-   - **FTP_DEBUG** if defined, print to the Ide serial monitor information for debugging.
-   - **FTP_USER**  the user' name
-   - **FTP_PASS**  the password
-   - **FTP_BUF_SIZE** is the size of the file buffer for read and write operations. The value 1024 gives the best speed results. But it can be reduced if memory usage is critical.
-   - **FTP_TIME_OUT** and FTP_AUTH_TIME_OUT are expressed in seconds.
+Setting of user's credentials
+  Default is 'arduino' for the user name and 'test' for the password.
+  This can be changed with:
+  ftpSrv.credentials( "myname", "123" );
+  Maximum length for name and password is 16
+  
+Calling the Ftp Server routine in the loop():
+  ftpSrv.service();
+  If needed, this function returns the status of the Ftp Server as an 8 bit integer:
+    bits 0-2 represents the stage of the ftp command connexion
+             see the definition of enum ftpCmd in FtpServer.h
+    bits 3-5 represents the stage of the ftp transfer
+             see the definition of enum ftpTransfer
+    bits 6 & 7 represents the stage of the data connexion
+             see the definition of enum ftpDataConn
+  As an example, uncomment the line #define FTP_DEBUG1 in FtpServerConfig.h
+             and run the sketch FtpServerStatusLed
+       
+===========
+FTP clients
+===========
 
-In FatLib.h
-   - **FAT_USE** allow to select a library to manage the file system.
-   
-## About libraries used with FtpServer
-### Streaming & ExtStreaming       
+I test FtpServer with those clients:
 
-Streaming is a library from Mikal Hart (http://arduiniana.org/2009/04/new-streaming-library/)
-
-I slightly modify this library because the declaration of 'endl' colides with one in SdFat.
-
-I replace it with 'eol' and rename the library to ExtStreaming.
-
-ExtStreaming is included in FtpServer library so you don't need to download it.
-
-### FatFs
-
-FatFs are classes to wrap in Arduino ide the module FatFs from ChaN
-
-### FatLib
-
-FatLib allows you to easily switch between libraries SdFat, FatFs and SPIFFS
-
-It includes ExtSdFat and ExtSpiFfs, wrappers for SdFat or FS
-
-### SdFat
-
-Library from William Greiman library
-
-It is faster than FatFs and use less memory, but don't allow the use of accentued characters in file names.
-
-### Ethernet
-
-With new version (2.0.0) of this Arduino library, it is no more necessary to add function
-connected() to EthernetServer class as in first versions of FtpServer
-
-## FTP clients
-
-I have tested FtpServer with those clients:
-
-### Under Windows 
+Under Windows:
   FTP Rush, Filezilla, WinSCP, NcFTP (and ncftpget, ncftpput), Firefox, command line ftp.exe
   
-### Under Ubuntu 
+Under Ubuntu:
   gFTP, Filezilla, NcFTP(and ncftpget, ncftpput), lftp, ftp, Firefox
   
-### Under Android 
+Under Android:
   AndFTP, FTP Express, Firefox
   
-### With a second Arduino 
+With a second Arduino:
   using the sketch of SurferTim at http://playground.arduino.cc/Code/FTP
 
-## When available in client, you have to select single data connection mode.
+When available, you have to select single data connection mode.
 
-### FTP Rush 
+FTP Rush:
 To force FTP Rush to use the primary connection for data transfers:
-
 Go to Tools/Site Manager, right-select you site and Site Properties
-
 In General, check "Single connection mode"
 
-### WinSCP 
+WinSCP:
 To force WinSCP to use the primary connection for data transfers:
-
 In Login, go to Tools/Preferences.../Transfer/Background,
-
   set "Maximum number of transfers at the same time" to 1.
 
-### gFTP 
+gFTP:
 To force gFTP to use the primary connection for data transfers:
-
 Go to FTP/Preferences...,
-
 In General, check "One transfer at a time"
   
-### FileZilla 
+FileZilla:
 To force FileZilla to use the primary connection for data transfers:
-
-Go to File/Site Manager then select your site.
-
+Go to File/Site Manager then select you site.
 In Transfer Settings, check "Limit number of simultaneous connections" and set the maximum to 1
 
-### Firefox 
-Only used to download files.
-
-Enter address ftp://arduino:Due@192.168.1.xxx
-
+Firefox:
+Enter address ftp://arduino:test@192.168.1.xxx
 You can download any file from the server.
-
 You have to quit Firefox to close the connection with the server.
 
-### NcFTP 
+NcFTP:
 This client works on the command line and is perfect for batch processing.
-
 For example:
-
-  ncftpget -d stdout -u arduino -p test 192.168.1.xxx . /MyDir/MyFile
-  
+  ncftpget -d stdout -u arduino -p Due 192.168.1.xxx . /MyDir/MyFile
   to download a file to the current directory
