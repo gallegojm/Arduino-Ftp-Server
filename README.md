@@ -10,12 +10,12 @@ This is version 2. It has many changes:
 
    - Download and install FtpServer library
    - Edit file FtpServer/src/FtpServerConfig.h and
-   - Modify #define FTP_FILESYST according to the files system library you are using
+   - Modify **#define FTP_FILESYST** according to the files system library you are using
    - The possible choices are:
 
 ## 1) Library SdFat version 1.4 from William Greiman
    - Link: https://github.com/greiman/SdFat/archive/1.1.4.zip
-   - In file FtpServerConfig.h set FTP_FILESYST to FTP_SDFAT1
+   - In file FtpServerConfig.h set **FTP_FILESYST** to **FTP_SDFAT1**
    - Make sure that a version 1.4.x of the SdFat library is installed
    - In the Ide, open example FtpServerSdFat1
    - Study the example and modify it according to your hardware
@@ -26,7 +26,7 @@ This is version 2. It has many changes:
 
 ## 2) New library SdFat version 2.0.2 from William Greiman
    - Link: https://github.com/greiman/SdFat
-   - In file FtpServerConfig.h set FTP_FILESYST to FTP_SDFAT2
+   - In file FtpServerConfig.h set **FTP_FILESYST** to **FTP_SDFAT2**
    - Make sure that a version 2.0.2 of the SdFat library is installed
    - This library allows to use the exFat filesystem, in addition to Fat16/32
    - Check the SdFat/src/SdFatConfig.h file and verify that SDFAT_FILE_TYPE has
@@ -37,19 +37,24 @@ This is version 2. It has many changes:
 ## 3) Library FatFs from ChaN adapted by me to run on Arduino
    - Link: https://github.com/gallegojm/Arduino-FatFs
    - For low level access to memory card, need SdFat version 1.4
-   - In file FtpServerConfig.h set FTP_FILESYST to FTP_FATFS
+   - In file FtpServerConfig.h set **FTP_FILESYST** to **FTP_FATFS**
    - In the Ide, open example FtpServerFatFs
    - Continue as for SdFat 1.4
 
 ## 4) Libraries Adafruit_SPIFlash and SdFat-Adafruit-Fork to access SPI memories
    - Needs: https://github.com/adafruit/Adafruit_SPIFlash
    - Needs: https://github.com/adafruit/SdFat
-   - In file FtpServerConfig.h set FTP_FILESYST to FTP_SPIFM
+   - In file FtpServerConfig.h set **FTP_FILESYST** to **FTP_SPIFM**
    - Check files Adafruit_SPIFlash/src/flash_devices.h and
        Adafruit_SPIFlash/src/Adafruit_SPIFlashBase.cpp to select your
        memory chip
    - In the Ide, open example FtpServerSpiFlash
    - Continue as for SdFat 1.4
+
+## Differences between those libraries:
+   - The new version of **SdFat** is the most recommendable as developed and maintained especially for the Arduino. Be sure to use version 2.0.2 or more recent.
+   - FatFs lets you select the character encoding and the code page. This is useful if files name include accented letters but this increases the size of the sketch and the memory used.
+   - Adafruit_SPIFlash and SdFat-Adafruit-Fork permit to use SPI flash memories instead of SD memories.
 
 # ========
 # Definitions
@@ -63,7 +68,7 @@ You may have to modify some of the definitions in FtpServerConfig.h:
  - **FTP_TIME_OUT** and **FTP_AUTH_TIME_OUT** are expressed in seconds.
  - **FTP_BUF_SIZE** is the size of the file buffer for read and write operations.
                This size affects the transmission speed. Values of 2048 or 1024 give
-               best speed results, but it can be reduced if memory usage is critical.
+               the best speed results, but can be reduced if memory usage is critical.
 
 # ======
 # Functions
