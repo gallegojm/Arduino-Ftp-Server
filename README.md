@@ -56,12 +56,12 @@ This is version 2. It has many changes:
 # ========
 
 You may have to modify some of the definitions in FtpServerConfig.h:
-  FTP_FILESYST allows to define the files system used
-  FTP_DEBUG    if defined, print to the Ide serial monitor information for debugging.
-  FTP_DEBUG1   if defined, print additional info
-  FTP_SERIAL   lets redirect debug info to an other port than Serial
-  FTP_TIME_OUT and FTP_AUTH_TIME_OUT are expressed in seconds.
-  FTP_BUF_SIZE is the size of the file buffer for read and write operations.
+ - FTP_FILESYST allows to define the files system used
+ - FTP_DEBUG    if defined, print to the Ide serial monitor information for debugging.
+ - FTP_DEBUG1   if defined, print additional info
+ - FTP_SERIAL   lets redirect debug info to an other port than Serial
+ - FTP_TIME_OUT and FTP_AUTH_TIME_OUT are expressed in seconds.
+ - FTP_BUF_SIZE is the size of the file buffer for read and write operations.
                This size affects the transmission speed. Values of 2048 or 1024 give
                best speed results, but it can be reduced if memory usage is critical.
 
@@ -70,15 +70,16 @@ You may have to modify some of the definitions in FtpServerConfig.h:
 # ======
 
 ## Declaration of the Ftp Server:
-  FtpServer ftpSrv;  Default command port to 21 and data port in passive mode to 55600
-  FtpServer ftpSrv( 421 ); Select command port
-  FtpServer ftpSrv( 221, 25000 ); Select command and data ports
+ - **FtpServer ftpSrv;**  Default command port to 21 and data port in passive mode to 55600
+ - **FtpServer ftpSrv( 421 );** Select command port
+ - **FtpServer ftpSrv( 221, 25000 );** Select command and data ports
 
 ## Initialization of the FTP server:
-  ftpSrv.init(); 
-## In passive mode, when accessing the server from outside his subnet, it can be
+ - **ftpSrv.init();**
+ - In passive mode, when accessing the server from outside his subnet, it can be
   necessary with some clients to reply them with the server's external ip address
-  ftpSrv.init( IPAddress( 11, 22, 33, 44 );
+  
+  **ftpSrv.init( IPAddress( 11, 22, 33, 44 ));**
   
 ## Setting of user's credentials
   Default is 'arduino' for the user name and 'test' for the password.
